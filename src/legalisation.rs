@@ -1,6 +1,6 @@
-use rspirv::dr::{Instruction, Module, Operand};
-use rspirv::spirv::{Op, Word};
-use std::collections::{HashMap, HashSet};
+use rspirv::dr::{Module, Operand};
+use rspirv::spirv::Op;
+use std::collections::{hash_map::Entry, HashMap};
 
 pub fn dedup_vector_types(module: &mut Module) {
     let mut ty_and_dimensions_to_vector_id = HashMap::new();
@@ -26,10 +26,13 @@ pub fn dedup_vector_types(module: &mut Module) {
             _ => continue,
         };
 
-        if let Some(existing) = ty_and_dimensions_to_vector_id.get(&(scalar, dimensions)) {
-            replace.insert(result_id, *existing);
-        } else {
-            ty_and_dimensions_to_vector_id.insert((scalar, dimensions), result_id);
+        match ty_and_dimensions_to_vector_id.entry((scalar, dimensions)) {
+            Entry::Occupied(matching_vector) => {
+                replace.insert(result_id, *matching_vector.get());
+            }
+            Entry::Vacant(vacancy) => {
+                vacancy.insert(result_id);
+            }
         }
     }
 
