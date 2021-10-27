@@ -4,7 +4,7 @@ use std::collections::{HashMap, HashSet};
 
 mod legalisation;
 
-use legalisation::dedup_vector_types;
+use legalisation::{dedup_vector_types, fix_non_vector_constant_operand};
 
 pub fn unused_assignment_pruning_pass(module: &mut Module) -> bool {
     let mut unused = HashSet::new();
@@ -278,7 +278,8 @@ pub fn vectorisation_pass(module: &mut Module) -> bool {
 
                     println!(
                         "Removing {:?} at {}",
-                        Op::CompositeConstruct, composite_construct_id
+                        Op::CompositeConstruct,
+                        composite_construct_id
                     );
 
                     ids_to_replace.insert(composite_construct_id, vector_info.id);
@@ -288,7 +289,7 @@ pub fn vectorisation_pass(module: &mut Module) -> bool {
 
                 // Only allow certain types for now
                 match opcode {
-                    Op::FMul | Op::FAdd => {}
+                    Op::FMul | Op::FAdd | Op::IEqual | Op::FOrdEqual => {}
                     _ => return None,
                 }
 
@@ -302,6 +303,16 @@ pub fn vectorisation_pass(module: &mut Module) -> bool {
                 let shared_second_operand =
                     all_items_equal(follow_up_instructions.iter().map(|inst| &inst.operands[1]));
 
+                let vector_first_operand =
+                    all_items_equal_filter(follow_up_instructions.iter().map(|inst| {
+                        let id = match inst.operands[0] {
+                            Operand::IdRef(id) => id,
+                            _ => return None,
+                        };
+
+                        op_composite_extract_inst_to_vector_id.get(&id)
+                    }));
+
                 let vector_second_operand =
                     all_items_equal_filter(follow_up_instructions.iter().map(|inst| {
                         let id = match inst.operands[1] {
@@ -312,22 +323,14 @@ pub fn vectorisation_pass(module: &mut Module) -> bool {
                         op_composite_extract_inst_to_vector_id.get(&id)
                     }));
 
-                let new_instruction_operands = shared_first_operand
+                let (other_operand, vector_is_first_operand) = shared_first_operand
                     .map(|operand| {
-                        if opcode == Op::FMul {
-                            vec![Operand::IdRef(vector_info.id), operand.clone()]
-                        } else {
-                            vec![operand.clone(), Operand::IdRef(vector_info.id)]
-                        }
+                        let vector_is_first = vector_opcode == Op::VectorTimesScalar;
+                        (operand.clone(), vector_is_first)
                     })
-                    .or_else(|| {
-                        shared_second_operand
-                            .map(|operand| vec![Operand::IdRef(vector_info.id), operand.clone()])
-                    })
-                    .or_else(|| {
-                        vector_second_operand
-                            .map(|id| vec![Operand::IdRef(vector_info.id), Operand::IdRef(*id)])
-                    })?;
+                    .or_else(|| shared_second_operand.map(|operand| (operand.clone(), true)))
+                    .or_else(|| vector_first_operand.map(|id| (Operand::IdRef(*id), false)))
+                    .or_else(|| vector_second_operand.map(|id| (Operand::IdRef(*id), true)))?;
 
                 println!(
                     "Replacing {} with {:?}",
@@ -357,7 +360,11 @@ pub fn vectorisation_pass(module: &mut Module) -> bool {
                         vector_opcode,
                         Some(vector_id),
                         Some(inserted_instruction_id),
-                        new_instruction_operands,
+                        if vector_is_first_operand {
+                            vec![Operand::IdRef(vector_info.id), other_operand]
+                        } else {
+                            vec![other_operand, Operand::IdRef(vector_info.id)]
+                        },
                     ),
                 );
 
@@ -368,7 +375,7 @@ pub fn vectorisation_pass(module: &mut Module) -> bool {
                         vector_info.insertion_index + i + 1,
                         Instruction::new(
                             Op::CompositeExtract,
-                            Some(vector_info.ty.scalar_id),
+                            Some(scalar_type),
                             Some(*next_id),
                             vec![
                                 Operand::IdRef(inserted_instruction_id),
@@ -432,6 +439,7 @@ pub fn vectorisation_pass(module: &mut Module) -> bool {
     module.header.as_mut().unwrap().bound = next_id;
 
     if changed {
+        fix_non_vector_constant_operand(module);
         dedup_vector_types(module);
         unused_assignment_pruning_pass(module);
     }
