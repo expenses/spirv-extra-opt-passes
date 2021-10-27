@@ -2,6 +2,10 @@ use rspirv::dr::{Instruction, Module, Operand};
 use rspirv::spirv::{Op, Word};
 use std::collections::{HashMap, HashSet};
 
+mod legalisation;
+
+use legalisation::dedup_vector_types;
+
 pub fn remove_unused_assignments(module: &mut Module) -> bool {
     let mut unused = HashSet::new();
 
@@ -12,10 +16,18 @@ pub fn remove_unused_assignments(module: &mut Module) -> bool {
         }
     }
 
+    // Todo: it's probably safe to prune glsl extension functions
+    fn is_extension_function(opcode: Op) -> bool {
+        match opcode {
+            Op::ExtInst => true,
+            _ => false
+        }
+    }
+
     fn handle_instruction(unused: &mut HashSet<Word>, instruction: &Instruction) {
         for operand in &instruction.operands {
             if let Operand::IdRef(id) = operand {
-                unused.remove(&id);
+                unused.remove(id);
             }
         }
 
@@ -24,7 +36,7 @@ pub fn remove_unused_assignments(module: &mut Module) -> bool {
         }
 
         // Forwards referenced types are used before they are assigned, so we ignore them as we're doing a single pass.
-        if is_forward_referenced(instruction.class.opcode) {
+        if is_forward_referenced(instruction.class.opcode) || is_extension_function(instruction.class.opcode) {
             return;
         }
 
@@ -34,7 +46,7 @@ pub fn remove_unused_assignments(module: &mut Module) -> bool {
     }
 
     for instruction in &module.types_global_values {
-        handle_instruction(&mut unused, &instruction);
+        handle_instruction(&mut unused, instruction);
     }
 
     for function in &module.functions {
@@ -44,13 +56,13 @@ pub fn remove_unused_assignments(module: &mut Module) -> bool {
 
         for block in &function.blocks {
             for instruction in &block.instructions {
-                handle_instruction(&mut unused, &instruction);
+                handle_instruction(&mut unused, instruction);
             }
         }
     }
 
     for instruction in &module.entry_points {
-        handle_instruction(&mut unused, &instruction);
+        handle_instruction(&mut unused, instruction);
     }
 
     module
@@ -80,7 +92,7 @@ pub fn remove_unused_assignments(module: &mut Module) -> bool {
         for operand in &instruction.operands {
             if let Operand::IdRef(id) = operand {
                 has_id_operands = true;
-                all_id_operands_are_unused &= unused.contains(&id);
+                all_id_operands_are_unused &= unused.contains(id);
             }
         }
 
@@ -132,6 +144,8 @@ pub fn handle_vector_decomposition(module: &mut Module) -> bool {
         }
     }
 
+    let mut next_id = module.header.as_ref().unwrap().bound;
+
     let mut changed = false;
 
     for function in &mut module.functions {
@@ -164,14 +178,14 @@ pub fn handle_vector_decomposition(module: &mut Module) -> bool {
                         }
                     }
                     Op::CompositeExtract => {
-                        let vector_id = match instruction.operands[0] {
-                            Operand::IdRef(id) => id,
-                            _ => continue,
-                        };
-                        let index = match instruction.operands[1] {
-                            Operand::LiteralInt32(index) => index,
-                            _ => continue,
-                        };
+                        let (vector_id, index) =
+                            match (&instruction.operands[0], &instruction.operands[1]) {
+                                (&Operand::IdRef(vector_id), &Operand::LiteralInt32(index)) => {
+                                    (vector_id, index)
+                                }
+                                _ => continue,
+                            };
+
                         let vector_type = match vector_type_info.get(&vector_id) {
                             Some(vector_type) => *vector_type,
                             _ => continue,
@@ -205,39 +219,44 @@ pub fn handle_vector_decomposition(module: &mut Module) -> bool {
             let mut vector_info = vector_info.iter().collect::<Vec<_>>();
             vector_info.sort_unstable_by_key(|&(id, _)| id);
 
-            'outer: for (_, vector_info) in &vector_info {
-                let extracted_component_ids = match vector_info
+            fn handle_decomposition_for_vector(
+                vector_info: &VectorInfo,
+                follow_up_instructions: &HashMap<Word, Option<Instruction>>,
+                op_composite_extract_inst_to_vector_id: &HashMap<Word, Word>,
+                instructions_to_replace: &mut HashMap<Word, Instruction>,
+                ids_to_replace: &mut HashMap<Word, Word>,
+                types_global_values: &mut Vec<Instruction>,
+                next_id: &mut u32,
+            ) -> Option<()> {
+                let extracted_component_ids = vector_info
                     .extracted_component_ids
                     .iter()
                     .cloned()
-                    .collect::<Option<Vec<_>>>()
-                {
-                    Some(extracted_component_ids) => extracted_component_ids,
-                    None => continue,
-                };
+                    .collect::<Option<Vec<_>>>()?;
 
-                let followup_instructions = match extracted_component_ids
+                let follow_up_instructions = extracted_component_ids
                     .iter()
-                    .map(|id| follow_up_instructions[&id].as_ref())
-                    .collect::<Option<Vec<&Instruction>>>()
-                {
-                    Some(followup_instructions) => followup_instructions,
-                    None => continue,
-                };
+                    .map(|id| follow_up_instructions[id].as_ref())
+                    .collect::<Option<Vec<&Instruction>>>()?;
 
-                let opcode = match all_items_equal(
-                    followup_instructions.iter().map(|inst| inst.class.opcode),
-                ) {
-                    Some(opcode) => opcode,
-                    None => continue,
-                };
+                let scalar_type = follow_up_instructions[0].result_type?;
+
+                let follow_up_instruction_result_ids = follow_up_instructions
+                    .iter()
+                    .map(|instruction| instruction.result_id)
+                    .collect::<Option<Vec<_>>>()?;
+
+                let opcode =
+                    all_items_equal(follow_up_instructions.iter().map(|inst| inst.class.opcode))?;
 
                 if opcode == Op::CompositeConstruct {
-                    continue;
+                    return None;
                 }
 
-                if opcode == Op::FOrdEqual {
-                    continue;
+                // Only allow certain types for now
+                match opcode {
+                    Op::FMul | Op::FAdd => {},
+                    _ => return None
                 }
 
                 let vector_opcode = match opcode {
@@ -246,27 +265,23 @@ pub fn handle_vector_decomposition(module: &mut Module) -> bool {
                 };
 
                 let shared_first_operand =
-                    all_items_equal(followup_instructions.iter().map(|inst| &inst.operands[0]));
+                    all_items_equal(follow_up_instructions.iter().map(|inst| &inst.operands[0]));
                 let shared_second_operand =
-                    all_items_equal(followup_instructions.iter().map(|inst| &inst.operands[1]));
+                    all_items_equal(follow_up_instructions.iter().map(|inst| &inst.operands[1]));
 
-                let all_followups_point_to_vector =
-                    all_items_equal_filter(followup_instructions.iter().map(|inst| {
-                        let id = match inst.operands[1] {
-                            Operand::IdRef(id) => id,
-                            _ => return None,
+                let all_follow_ups_point_to_vector =
+                    all_items_equal_filter(follow_up_instructions.iter().map(|inst| {
+                        let (op_1, op_2) = match (&inst.operands[0], &inst.operands[1]) {
+                            (&Operand::IdRef(op_1), &Operand::IdRef(op_2)) => (op_1, op_2),
+                            _ => return None
                         };
 
-                        let id2 = match inst.operands[0] {
-                            Operand::IdRef(id) => id,
-                            _ => return None,
-                        };
-
+                        // Todo: things seem to break if we do decomposition things across blocks.
                         let first_operand_is_in_block =
-                            op_composite_extract_inst_to_vector_id.get(&id2).is_some();
+                            op_composite_extract_inst_to_vector_id.get(&op_1).is_some();
 
                         if first_operand_is_in_block {
-                            op_composite_extract_inst_to_vector_id.get(&id)
+                            op_composite_extract_inst_to_vector_id.get(&op_2)
                         } else {
                             None
                         }
@@ -280,60 +295,98 @@ pub fn handle_vector_decomposition(module: &mut Module) -> bool {
                             vec![operand.clone(), Operand::IdRef(vector_info.id)]
                         }
                     })
-                    .or(shared_second_operand
-                        .map(|operand| vec![Operand::IdRef(vector_info.id), operand.clone()]))
-                    .or(all_followups_point_to_vector
-                        .map(|id| vec![Operand::IdRef(vector_info.id), Operand::IdRef(*id)]));
+                    .or_else(|| {
+                        shared_second_operand
+                            .map(|operand| vec![Operand::IdRef(vector_info.id), operand.clone()])
+                    })
+                    .or_else(|| {
+                        all_follow_ups_point_to_vector
+                            .map(|id| vec![Operand::IdRef(vector_info.id), Operand::IdRef(*id)])
+                    })?;
 
-                if let Some(new_instruction_operands) = new_instruction_operands {
-                    println!(
-                        "Replacing {} with {:?}",
-                        extracted_component_ids[0], vector_opcode
+                println!(
+                    "Replacing {} with {:?}",
+                    extracted_component_ids[0], vector_opcode
+                );
+
+                let vector_id = *next_id;
+
+                types_global_values.push(Instruction::new(
+                    Op::TypeVector,
+                    None,
+                    Some(vector_id),
+                    vec![
+                        Operand::IdRef(scalar_type),
+                        Operand::LiteralInt32(vector_info.ty.dimensions),
+                    ],
+                ));
+
+                *next_id += 1;
+
+                // Replace the first OpCompositeExtract with the VectorTimes Scalar and the rest with Nops.
+                instructions_to_replace.insert(
+                    extracted_component_ids[0],
+                    Instruction::new(
+                        vector_opcode,
+                        Some(vector_id),
+                        Some(extracted_component_ids[0]),
+                        new_instruction_operands,
+                    ),
+                );
+                instructions_to_replace.insert(
+                    extracted_component_ids[1],
+                    Instruction::new(Op::Nop, None, None, vec![]),
+                );
+                instructions_to_replace.insert(
+                    extracted_component_ids[2],
+                    Instruction::new(Op::Nop, None, None, vec![]),
+                );
+
+                // As we're moving the extraction until later, we need to replace usages of the extracted IDs with the follow_up IDs.
+                for i in 0..vector_info.ty.dimensions {
+                    ids_to_replace.insert(
+                        extracted_component_ids[i as usize],
+                        follow_up_instruction_result_ids[i as usize],
                     );
+                }
 
-                    // Replace the first OpCompositeExtract with the VectorTimes Scalar and the rest with Nops.
+                // Now replace the follow up instructions with composite extracts.
+                for (i, result_id) in follow_up_instruction_result_ids.iter().cloned().enumerate() {
                     instructions_to_replace.insert(
-                        extracted_component_ids[0],
+                        result_id,
                         Instruction::new(
-                            vector_opcode,
-                            Some(vector_info.ty.id),
-                            Some(extracted_component_ids[0]),
-                            new_instruction_operands,
+                            Op::CompositeExtract,
+                            Some(vector_info.ty.scalar_id),
+                            Some(result_id),
+                            vec![
+                                Operand::IdRef(extracted_component_ids[0]),
+                                Operand::LiteralInt32(i as u32),
+                            ],
                         ),
                     );
-                    instructions_to_replace.insert(
-                        extracted_component_ids[1],
-                        Instruction::new(Op::Nop, None, None, vec![]),
-                    );
-                    instructions_to_replace.insert(
-                        extracted_component_ids[2],
-                        Instruction::new(Op::Nop, None, None, vec![]),
-                    );
+                }
 
-                    // As we're moving the extraction until later, we need to replace usages of the extracted IDs with the followup IDs.
-                    for i in 0..vector_info.ty.dimensions {
-                        ids_to_replace.insert(
-                            extracted_component_ids[i as usize],
-                            followup_instructions[i as usize].result_id.unwrap(),
-                        );
-                    }
+                Some(())
+            }
 
-                    for (i, inst) in followup_instructions.iter().enumerate() {
-                        instructions_to_replace.insert(
-                            inst.result_id.unwrap(),
-                            Instruction::new(
-                                Op::CompositeExtract,
-                                Some(vector_info.ty.scalar_id),
-                                Some(inst.result_id.unwrap()),
-                                vec![
-                                    Operand::IdRef(extracted_component_ids[0]),
-                                    Operand::LiteralInt32(i as u32),
-                                ],
-                            ),
-                        );
-                    }
+            for (_, vector_info) in &vector_info {
+                let modified = handle_decomposition_for_vector(
+                    vector_info,
+                    &follow_up_instructions,
+                    &op_composite_extract_inst_to_vector_id,
+                    &mut instructions_to_replace,
+                    &mut ids_to_replace,
+                    &mut module.types_global_values,
+                    &mut next_id
+                ).is_some();
 
-                    break 'outer;
+
+                changed |= modified;
+
+                if modified {
+                    // Break from the loop as it's easier to just re-run the pass than update then state for a second
+                    // modification.
+                    break;
                 }
             }
 
@@ -358,6 +411,12 @@ pub fn handle_vector_decomposition(module: &mut Module) -> bool {
                 .instructions
                 .retain(|instruction| instruction.class.opcode != Op::Nop);
         }
+    }
+
+    module.header.as_mut().unwrap().bound = next_id;
+
+    if changed {
+        dedup_vector_types(module);
     }
 
     dbg!(changed)
