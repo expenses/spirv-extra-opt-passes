@@ -1,0 +1,9 @@
+[package]
+name = "spirv-extra-opt-passes"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rspirv = "0.10.0"
+structopt = "0.3.25"
+spirv-extra-opt-passes-lib = { path = ".." }

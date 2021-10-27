@@ -1,0 +1,10 @@
+[package]
+name = "spirv-extra-opt-passes-lib"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rspirv = "0.10.0"
+
+[workspace]
+members = [".", "spirv-extra-opt-passes"]
