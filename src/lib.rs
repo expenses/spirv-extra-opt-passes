@@ -18,7 +18,11 @@ pub fn unused_assignment_pruning_pass(module: &mut Module) -> bool {
         }
     }
 
-    fn handle_instruction(referenced_ids: &mut HashSet<Word>, result_ids: &mut HashSet<Word>, instruction: &Instruction) {
+    fn handle_instruction(
+        referenced_ids: &mut HashSet<Word>,
+        result_ids: &mut HashSet<Word>,
+        instruction: &Instruction,
+    ) {
         for operand in &instruction.operands {
             if let Operand::IdRef(id) = operand {
                 referenced_ids.insert(*id);
@@ -58,7 +62,9 @@ pub fn unused_assignment_pruning_pass(module: &mut Module) -> bool {
         handle_instruction(&mut referenced_ids, &mut result_ids, instruction);
     }
 
-    let unused = result_ids.difference(&referenced_ids).collect::<HashSet<_>>();
+    let unused = result_ids
+        .difference(&referenced_ids)
+        .collect::<HashSet<_>>();
 
     module
         .types_global_values
@@ -131,12 +137,16 @@ struct VectorInfo {
     extracted_component_ids: Vec<Option<Word>>,
     ty: VectorTypeInfo,
     id: Word,
-    insertion_index: usize,
 }
 
 struct CompositeExtractInfo {
     vector_id: Word,
     dimension_index: u32,
+}
+
+struct FollowUpInstruction {
+    instruction: Instruction,
+    insertion_index: usize
 }
 
 pub fn vectorisation_pass(module: &mut Module) -> bool {
@@ -172,30 +182,19 @@ pub fn vectorisation_pass(module: &mut Module) -> bool {
     for function in &mut module.functions {
         for block in &mut function.blocks {
             let mut vector_info = HashMap::new();
-            let mut follow_up_instructions: HashMap<u32, Option<Instruction>> = HashMap::new();
+            let mut follow_up_instructions: HashMap<u32, Option<FollowUpInstruction>> = HashMap::new();
             let mut composite_extract_info = HashMap::new();
 
             for (insertion_index, instruction) in block.instructions.iter().enumerate() {
                 for operand in &instruction.operands {
                     if let Operand::IdRef(id) = operand {
                         if let Some(follow_up_instruction) = follow_up_instructions.get_mut(id) {
-                            follow_up_instruction.get_or_insert(instruction.clone());
+                            follow_up_instruction.get_or_insert(FollowUpInstruction { instruction: instruction.clone(), insertion_index });
                         }
                     }
                 }
 
                 match instruction.class.opcode {
-                    Op::Load | Op::VectorTimesScalar => {
-                        let (result_id, result_type) =
-                            match (instruction.result_id, instruction.result_type) {
-                                (Some(result_id), Some(result_type)) => (result_id, result_type),
-                                _ => continue,
-                            };
-
-                        if let Some(vector_type) = vector_type_info.get(&result_type).cloned() {
-                            vector_type_info.insert(result_id, vector_type);
-                        }
-                    }
                     Op::CompositeExtract => {
                         let (vector_id, dimension_index) =
                             match (&instruction.operands[0], &instruction.operands[1]) {
@@ -232,7 +231,6 @@ pub fn vectorisation_pass(module: &mut Module) -> bool {
                                 },
                                 ty: vector_type,
                                 id: vector_id,
-                                insertion_index,
                             });
 
                         vector_info.extracted_component_ids[dimension_index as usize] =
@@ -240,7 +238,17 @@ pub fn vectorisation_pass(module: &mut Module) -> bool {
 
                         follow_up_instructions.insert(result_id, None);
                     }
-                    _ => {}
+                    _ => {
+                        let (result_id, result_type) =
+                            match (instruction.result_id, instruction.result_type) {
+                                (Some(result_id), Some(result_type)) => (result_id, result_type),
+                                _ => continue,
+                            };
+
+                        if let Some(vector_type) = vector_type_info.get(&result_type).cloned() {
+                            vector_type_info.insert(result_id, vector_type);
+                        }
+                    }
                 }
             }
 
@@ -304,7 +312,7 @@ pub fn vectorisation_pass(module: &mut Module) -> bool {
 
 fn vectorise(
     vector_info: &VectorInfo,
-    follow_up_instructions: &HashMap<Word, Option<Instruction>>,
+    follow_up_instructions: &HashMap<Word, Option<FollowUpInstruction>>,
     composite_extract_info: &HashMap<Word, CompositeExtractInfo>,
     ids_to_replace: &mut HashMap<Word, Word>,
     types_global_values: &mut Vec<Instruction>,
@@ -317,9 +325,15 @@ fn vectorise(
         .cloned()
         .collect::<Option<Vec<_>>>()?;
 
+    // We want to insert the instruction at the index of the first follow up instruction.
+    //
+    // Inserting sooner, like at the first component extract instruction, might not work as 
+    // any other operands might not be defined.
+    let insertion_index = follow_up_instructions.get(&extracted_component_ids[0])?.as_ref()?.insertion_index;
+
     let follow_up_instructions = extracted_component_ids
         .iter()
-        .map(|id| follow_up_instructions[id].as_ref())
+        .map(|id| follow_up_instructions[id].as_ref().map(|follow_up| &follow_up.instruction))
         .collect::<Option<Vec<&Instruction>>>()?;
 
     let scalar_type = follow_up_instructions[0].result_type?;
@@ -358,7 +372,7 @@ fn vectorise(
         let composite_construct_id = follow_up_instruction_result_ids[0];
 
         println!(
-            "Removing {:?} at {}",
+            "Removing references to {:?} at {}",
             Op::CompositeConstruct,
             composite_construct_id
         );
@@ -370,58 +384,19 @@ fn vectorise(
 
     // Only allow certain types for now
     match opcode {
-        Op::FMul | Op::FAdd | Op::FSub | Op::IEqual | Op::FOrdEqual => {}
-        _ => return None,
+        Op::FMul | Op::FAdd | Op::FSub | Op::IEqual | Op::FOrdEqual | Op::Select => {}
+        _ => {
+            //println!("!!Unhandled opcode: {:?}!!", opcode);
+            return None;
+        }
     }
 
-    fn vector_operand(
-        operand_index: usize,
-        follow_up_instructions: &[&Instruction],
-        composite_extract_info: &HashMap<Word, CompositeExtractInfo>,
-    ) -> Option<Word> {
-        all_items_equal_filter(follow_up_instructions.iter().enumerate().map(|(i, inst)| {
-            let id = match inst.operands[operand_index] {
-                Operand::IdRef(id) => id,
-                _ => return None,
-            };
-
-            match composite_extract_info.get(&id) {
-                Some(&CompositeExtractInfo {
-                    vector_id,
-                    dimension_index,
-                }) if dimension_index == i as u32 => Some(vector_id),
-                _ => None,
-            }
-        }))
-    }
-
-    let shared_first_operand =
-        all_items_equal(follow_up_instructions.iter().map(|inst| &inst.operands[0]));
-    let shared_second_operand =
-        all_items_equal(follow_up_instructions.iter().map(|inst| &inst.operands[1]));
-    
-    let vector_first_operand = vector_operand(0, &follow_up_instructions, composite_extract_info);
-
-    let vector_second_operand = vector_operand(1, &follow_up_instructions, composite_extract_info);
-
-    let (other_operand, vector_is_first_operand, other_operand_is_vector) = shared_first_operand
-        .map(|operand| {
-            // The operation will get turned into OpVectorTimesScalar which needs the vector to be in the first position.
-            let vector_is_first = opcode == Op::FMul;
-            (operand.clone(), vector_is_first, false)
-        })
-        .or_else(|| shared_second_operand.map(|operand| (operand.clone(), true, false)))
-        .or_else(|| vector_first_operand.map(|id| (Operand::IdRef(id), false, true)))
-        .or_else(|| vector_second_operand.map(|id| (Operand::IdRef(id), true, true)))?;
-
-    if opcode == Op::FMul && !other_operand_is_vector {
-        opcode = Op::VectorTimesScalar;
-    }
-
-    println!(
-        "Replacing {} with {:?}",
-        extracted_component_ids[0], opcode
-    );
+    let operands = get_operands(
+        vector_info.id,
+        &follow_up_instructions,
+        composite_extract_info,
+        &mut opcode,
+    )?;
 
     let vector_id = *next_id;
 
@@ -439,18 +414,19 @@ fn vectorise(
 
     let inserted_instruction_id = *next_id;
 
+    println!(
+        "Replacing {} with {:?} ({})",
+        extracted_component_ids[0], opcode, inserted_instruction_id
+    );
+
     // Replace the first OpCompositeExtract with the VectorTimes Scalar and the rest with Nops.
     instructions.insert(
-        vector_info.insertion_index,
+        insertion_index,
         Instruction::new(
             opcode,
             Some(vector_id),
             Some(inserted_instruction_id),
-            if vector_is_first_operand {
-                vec![Operand::IdRef(vector_info.id), other_operand]
-            } else {
-                vec![other_operand, Operand::IdRef(vector_info.id)]
-            },
+            operands,
         ),
     );
 
@@ -458,7 +434,7 @@ fn vectorise(
 
     for (i, result_id) in follow_up_instruction_result_ids.iter().cloned().enumerate() {
         instructions.insert(
-            vector_info.insertion_index + i + 1,
+            insertion_index + i + 1,
             Instruction::new(
                 Op::CompositeExtract,
                 Some(scalar_type),
@@ -476,6 +452,77 @@ fn vectorise(
     }
 
     Some(())
+}
+
+fn vector_operand(
+    operand_index: usize,
+    follow_up_instructions: &[&Instruction],
+    composite_extract_info: &HashMap<Word, CompositeExtractInfo>,
+) -> Option<Word> {
+    all_items_equal_filter(follow_up_instructions.iter().enumerate().map(|(i, inst)| {
+        let id = match inst.operands[operand_index] {
+            Operand::IdRef(id) => id,
+            _ => return None,
+        };
+
+        match composite_extract_info.get(&id) {
+            Some(&CompositeExtractInfo {
+                vector_id,
+                dimension_index,
+            }) if dimension_index == i as u32 => Some(vector_id),
+            _ => None,
+        }
+    }))
+}
+
+fn get_operands(
+    vector_id: Word,
+    follow_up_instructions: &[&Instruction],
+    composite_extract_info: &HashMap<Word, CompositeExtractInfo>,
+    opcode: &mut Op,
+) -> Option<Vec<Operand>> {
+    if *opcode == Op::Select {
+        let (true_op, false_op) = all_items_equal(
+            follow_up_instructions
+                .iter()
+                .map(|inst| (&inst.operands[1], &inst.operands[2])),
+        )?;
+
+        return Some(vec![
+            Operand::IdRef(vector_id),
+            true_op.clone(),
+            false_op.clone(),
+        ]);
+    }
+
+    let shared_first_operand =
+        all_items_equal(follow_up_instructions.iter().map(|inst| &inst.operands[0]));
+    let shared_second_operand =
+        all_items_equal(follow_up_instructions.iter().map(|inst| &inst.operands[1]));
+
+    let vector_first_operand = vector_operand(0, &follow_up_instructions, composite_extract_info);
+
+    let vector_second_operand = vector_operand(1, &follow_up_instructions, composite_extract_info);
+
+    let (other_operand, vector_is_first_operand, other_operand_is_vector) = shared_first_operand
+        .map(|operand| {
+            // The operation will get turned into OpVectorTimesScalar which needs the vector to be in the first position.
+            let vector_is_first = *opcode == Op::FMul;
+            (operand.clone(), vector_is_first, false)
+        })
+        .or_else(|| shared_second_operand.map(|operand| (operand.clone(), true, false)))
+        .or_else(|| vector_first_operand.map(|id| (Operand::IdRef(id), false, true)))
+        .or_else(|| vector_second_operand.map(|id| (Operand::IdRef(id), true, true)))?;
+
+    if *opcode == Op::FMul && !other_operand_is_vector {
+        *opcode = Op::VectorTimesScalar;
+    }
+
+    Some(if vector_is_first_operand {
+        vec![Operand::IdRef(vector_id), other_operand]
+    } else {
+        vec![other_operand, Operand::IdRef(vector_id)]
+    })
 }
 
 fn all_items_equal_filter<T: PartialEq>(

@@ -1,7 +1,7 @@
 ; SPIR-V
 ; Version: 1.4
 ; Generator: Google rspirv; 0
-; Bound: 1238
+; Bound: 1256
 ; Schema: 0
                OpCapability Int64
                OpCapability Int8
@@ -169,6 +169,11 @@
      %v3bool = OpTypeVector %bool 3
        %1220 = OpConstantComposite %v3int %int_0 %int_0 %int_0
        %1222 = OpConstantComposite %v3float %float_0 %float_0 %float_0
+    %v3uchar = OpTypeVector %uchar 3
+       %1244 = OpConstantComposite %v3uchar %uchar_1 %uchar_1 %uchar_1
+       %1246 = OpConstantComposite %v3uchar %uchar_0 %uchar_0 %uchar_0
+       %1248 = OpConstantComposite %v3uchar %uchar_1 %uchar_1 %uchar_1
+       %1250 = OpConstantComposite %v3uchar %uchar_0 %uchar_0 %uchar_0
           %3 = OpFunction %void None %94
         %163 = OpLabel
         %996 = OpVariable %_ptr_Function_bool Function %false
@@ -220,22 +225,20 @@
         %177 = OpLoad %ulong %176
         %178 = OpConvertUToAccelerationStructureKHR %71 %177
                OpStore %164 %178
-       %1195 = OpIEqual %v3bool %173 %1220
-       %1196 = OpCompositeExtract %bool %1195 0
-       %1197 = OpCompositeExtract %bool %1195 1
-       %1198 = OpCompositeExtract %bool %1195 2
         %179 = OpCompositeExtract %int %173 0
+       %1195 = OpIEqual %v3bool %173 %1220
         %181 = OpCompositeExtract %int %173 1
-        %185 = OpSelect %uchar %1196 %uchar_1 %uchar_0
-        %186 = OpSelect %uchar %1197 %uchar_1 %uchar_0
-        %187 = OpSelect %uchar %1198 %uchar_1 %uchar_0
-        %188 = OpINotEqual %bool %185 %uchar_0
+       %1224 = OpSelect %v3uchar %1195 %1244 %1246
+       %1225 = OpCompositeExtract %uchar %1224 0
+       %1226 = OpCompositeExtract %uchar %1224 1
+       %1227 = OpCompositeExtract %uchar %1224 2
+        %188 = OpINotEqual %bool %1225 %uchar_0
                OpSelectionMerge %189 None
                OpBranchConditional %188 %190 %191
         %191 = OpLabel
                OpBranch %189
         %190 = OpLabel
-        %192 = OpINotEqual %bool %186 %uchar_0
+        %192 = OpINotEqual %bool %1226 %uchar_0
         %193 = OpSelect %uchar %192 %uchar_1 %uchar_0
                OpBranch %189
         %189 = OpLabel
@@ -246,7 +249,7 @@
         %199 = OpLabel
                OpBranch %197
         %198 = OpLabel
-        %200 = OpINotEqual %bool %187 %uchar_0
+        %200 = OpINotEqual %bool %1227 %uchar_0
         %201 = OpSelect %uchar %200 %uchar_1 %uchar_0
                OpBranch %197
         %197 = OpLabel
@@ -427,19 +430,17 @@
         %415 = OpAccessChain %_ptr_RayPayloadNV_v3float %4 %uint_2
         %416 = OpLoad %v3float %415
        %1200 = OpFOrdEqual %v3bool %416 %1222
-       %1201 = OpCompositeExtract %bool %1200 0
-       %1202 = OpCompositeExtract %bool %1200 1
-       %1203 = OpCompositeExtract %bool %1200 2
-        %423 = OpSelect %uchar %1201 %uchar_1 %uchar_0
-        %424 = OpSelect %uchar %1202 %uchar_1 %uchar_0
-        %425 = OpSelect %uchar %1203 %uchar_1 %uchar_0
-        %426 = OpINotEqual %bool %423 %uchar_0
+       %1229 = OpSelect %v3uchar %1200 %1248 %1250
+       %1230 = OpCompositeExtract %uchar %1229 0
+       %1231 = OpCompositeExtract %uchar %1229 1
+       %1232 = OpCompositeExtract %uchar %1229 2
+        %426 = OpINotEqual %bool %1230 %uchar_0
                OpSelectionMerge %427 None
                OpBranchConditional %426 %428 %429
         %429 = OpLabel
                OpBranch %427
         %428 = OpLabel
-        %430 = OpINotEqual %bool %424 %uchar_0
+        %430 = OpINotEqual %bool %1231 %uchar_0
         %431 = OpSelect %uchar %430 %uchar_1 %uchar_0
                OpBranch %427
         %427 = OpLabel
@@ -450,7 +451,7 @@
         %437 = OpLabel
                OpBranch %435
         %436 = OpLabel
-        %438 = OpINotEqual %bool %425 %uchar_0
+        %438 = OpINotEqual %bool %1232 %uchar_0
         %439 = OpSelect %uchar %438 %uchar_1 %uchar_0
                OpBranch %435
         %435 = OpLabel
@@ -701,16 +702,16 @@
         %787 = OpLabel
         %788 = OpInBoundsAccessChain %_ptr_Function_v3float %704 %745
         %789 = OpLoad %v3float %788
-       %1229 = OpVectorTimesScalar %v3float %789 %919
-       %1234 = OpFAdd %v3float %1229 %1229
-       %1235 = OpCompositeExtract %float %1234 0
-       %1236 = OpCompositeExtract %float %1234 1
-       %1237 = OpCompositeExtract %float %1234 2
-        %799 = OpExtInst %float %1 FMax %1235 %float_0
+       %1239 = OpVectorTimesScalar %v3float %789 %919
+       %1252 = OpFAdd %v3float %1239 %1239
+       %1253 = OpCompositeExtract %float %1252 0
+       %1254 = OpCompositeExtract %float %1252 1
+       %1255 = OpCompositeExtract %float %1252 2
+        %799 = OpExtInst %float %1 FMax %1253 %float_0
         %800 = OpExtInst %float %1 FMin %799 %float_1
-        %801 = OpExtInst %float %1 FMax %1236 %float_0
+        %801 = OpExtInst %float %1 FMax %1254 %float_0
         %802 = OpExtInst %float %1 FMin %801 %float_1
-        %803 = OpExtInst %float %1 FMax %1237 %float_0
+        %803 = OpExtInst %float %1 FMax %1255 %float_0
         %804 = OpExtInst %float %1 FMin %803 %float_1
         %805 = OpCompositeConstruct %v3float %800 %802 %804
                OpStore %702 %true
