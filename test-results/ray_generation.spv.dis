@@ -1,7 +1,7 @@
 ; SPIR-V
 ; Version: 1.4
 ; Generator: Google rspirv; 0
-; Bound: 1256
+; Bound: 1270
 ; Schema: 0
                OpCapability Int64
                OpCapability Int8
@@ -174,6 +174,8 @@
        %1246 = OpConstantComposite %v3uchar %uchar_0 %uchar_0 %uchar_0
        %1248 = OpConstantComposite %v3uchar %uchar_1 %uchar_1 %uchar_1
        %1250 = OpConstantComposite %v3uchar %uchar_0 %uchar_0 %uchar_0
+       %1262 = OpConstantComposite %v3float %float_0 %float_0 %float_0
+       %1269 = OpConstantComposite %v3float %float_1 %float_1 %float_1
           %3 = OpFunction %void None %94
         %163 = OpLabel
         %996 = OpVariable %_ptr_Function_bool Function %false
@@ -704,23 +706,15 @@
         %789 = OpLoad %v3float %788
        %1239 = OpVectorTimesScalar %v3float %789 %919
        %1252 = OpFAdd %v3float %1239 %1239
-       %1253 = OpCompositeExtract %float %1252 0
-       %1254 = OpCompositeExtract %float %1252 1
-       %1255 = OpCompositeExtract %float %1252 2
-        %799 = OpExtInst %float %1 FMax %1253 %float_0
-        %800 = OpExtInst %float %1 FMin %799 %float_1
-        %801 = OpExtInst %float %1 FMax %1254 %float_0
-        %802 = OpExtInst %float %1 FMin %801 %float_1
-        %803 = OpExtInst %float %1 FMax %1255 %float_0
-        %804 = OpExtInst %float %1 FMin %803 %float_1
-        %805 = OpCompositeConstruct %v3float %800 %802 %804
+       %1257 = OpExtInst %v3float %1 FMax %1252 %1262
+       %1264 = OpExtInst %v3float %1 FMin %1257 %1269
                OpStore %702 %true
-               OpStore %703 %805
-               OpStore %705 %805
+               OpStore %703 %1264
+               OpStore %705 %1264
         %470 = OpAccessChain %_ptr_RayPayloadNV_v3float %4 %uint_0
         %471 = OpLoad %v3float %470
        %1215 = OpVectorTimesScalar %v3float %471 %float_9_99999997en07
-        %479 = OpFAdd %v3float %805 %1215
+        %479 = OpFAdd %v3float %1264 %1215
                OpBranch %462
         %813 = OpLabel
                OpUnreachable

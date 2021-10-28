@@ -1,6 +1,7 @@
 use rspirv::dr::{Instruction, Module, Operand};
 use rspirv::spirv::{Op, Word};
 use std::collections::{HashMap, HashSet};
+use num_traits::cast::FromPrimitive;
 
 mod legalisation;
 
@@ -10,11 +11,21 @@ pub fn unused_assignment_pruning_pass(module: &mut Module) -> bool {
     let mut result_ids = HashSet::new();
     let mut referenced_ids = HashSet::new();
 
-    // Todo: it's probably safe to prune glsl extension functions
-    fn is_extension_function(opcode: Op) -> bool {
-        match opcode {
-            Op::ExtInst => true,
-            _ => false,
+    let glsl_ext_inst_id = get_glsl_ext_inst_id(&module);
+
+    fn is_unknown_extension_instruction(instruction: &Instruction, glsl_ext_inst_id: Option<Word>) -> bool {
+        if instruction.class.opcode != Op::ExtInst {
+            return false
+        }
+
+        let glsl_ext_inst_id = match glsl_ext_inst_id {
+            Some(id) => id,
+            _ => return true
+        };
+
+        match instruction.operands[0] {
+            Operand::IdRef(id) => id != glsl_ext_inst_id,
+            _ => true
         }
     }
 
@@ -22,6 +33,7 @@ pub fn unused_assignment_pruning_pass(module: &mut Module) -> bool {
         referenced_ids: &mut HashSet<Word>,
         result_ids: &mut HashSet<Word>,
         instruction: &Instruction,
+        glsl_ext_inst_id: Option<Word>,
     ) {
         for operand in &instruction.operands {
             if let Operand::IdRef(id) = operand {
@@ -33,7 +45,7 @@ pub fn unused_assignment_pruning_pass(module: &mut Module) -> bool {
             referenced_ids.insert(*result_type);
         }
 
-        if is_extension_function(instruction.class.opcode) {
+        if is_unknown_extension_instruction(instruction, glsl_ext_inst_id) {
             return;
         }
 
@@ -43,23 +55,23 @@ pub fn unused_assignment_pruning_pass(module: &mut Module) -> bool {
     }
 
     for instruction in &module.types_global_values {
-        handle_instruction(&mut referenced_ids, &mut result_ids, instruction);
+        handle_instruction(&mut referenced_ids, &mut result_ids, instruction, glsl_ext_inst_id);
     }
 
     for function in &module.functions {
         if let Some(instruction) = &function.def {
-            handle_instruction(&mut referenced_ids, &mut result_ids, instruction);
+            handle_instruction(&mut referenced_ids, &mut result_ids, instruction, glsl_ext_inst_id);
         }
 
         for block in &function.blocks {
             for instruction in &block.instructions {
-                handle_instruction(&mut referenced_ids, &mut result_ids, instruction);
+                handle_instruction(&mut referenced_ids, &mut result_ids, instruction, glsl_ext_inst_id);
             }
         }
     }
 
     for instruction in &module.entry_points {
-        handle_instruction(&mut referenced_ids, &mut result_ids, instruction);
+        handle_instruction(&mut referenced_ids, &mut result_ids, instruction, glsl_ext_inst_id);
     }
 
     let unused = result_ids
@@ -146,7 +158,23 @@ struct CompositeExtractInfo {
 
 struct FollowUpInstruction {
     instruction: Instruction,
-    insertion_index: usize
+    insertion_index: usize,
+}
+
+fn get_glsl_ext_inst_id(module: &Module) -> Option<Word> {
+    let mut glsl_ext_inst_id = None;
+
+    for instruction in &module.ext_inst_imports {
+        if instruction.class.opcode == Op::ExtInstImport {
+            if let Operand::LiteralString(lit_string) = &instruction.operands[0] {
+                if lit_string == "GLSL.std.450" {
+                    glsl_ext_inst_id = instruction.result_id;
+                }
+            }
+        }
+    }
+
+    glsl_ext_inst_id
 }
 
 pub fn vectorisation_pass(module: &mut Module) -> bool {
@@ -173,6 +201,8 @@ pub fn vectorisation_pass(module: &mut Module) -> bool {
         }
     }
 
+    let glsl_ext_inst_id = get_glsl_ext_inst_id(&module);
+
     let mut next_id = module.header.as_ref().unwrap().bound;
 
     let mut changed = false;
@@ -182,14 +212,18 @@ pub fn vectorisation_pass(module: &mut Module) -> bool {
     for function in &mut module.functions {
         for block in &mut function.blocks {
             let mut vector_info = HashMap::new();
-            let mut follow_up_instructions: HashMap<u32, Option<FollowUpInstruction>> = HashMap::new();
+            let mut follow_up_instructions: HashMap<u32, Option<FollowUpInstruction>> =
+                HashMap::new();
             let mut composite_extract_info = HashMap::new();
 
             for (insertion_index, instruction) in block.instructions.iter().enumerate() {
                 for operand in &instruction.operands {
                     if let Operand::IdRef(id) = operand {
                         if let Some(follow_up_instruction) = follow_up_instructions.get_mut(id) {
-                            follow_up_instruction.get_or_insert(FollowUpInstruction { instruction: instruction.clone(), insertion_index });
+                            follow_up_instruction.get_or_insert(FollowUpInstruction {
+                                instruction: instruction.clone(),
+                                insertion_index,
+                            });
                         }
                     }
                 }
@@ -264,6 +298,7 @@ pub fn vectorisation_pass(module: &mut Module) -> bool {
                     &mut module.types_global_values,
                     &mut block.instructions,
                     &mut next_id,
+                    glsl_ext_inst_id,
                 )
                 .is_some();
 
@@ -318,6 +353,7 @@ fn vectorise(
     types_global_values: &mut Vec<Instruction>,
     instructions: &mut Vec<Instruction>,
     next_id: &mut u32,
+    glsl_ext_inst_id: Option<Word>,
 ) -> Option<()> {
     let extracted_component_ids = vector_info
         .extracted_component_ids
@@ -327,13 +363,20 @@ fn vectorise(
 
     // We want to insert the instruction at the index of the first follow up instruction.
     //
-    // Inserting sooner, like at the first component extract instruction, might not work as 
+    // Inserting sooner, like at the first component extract instruction, might not work as
     // any other operands might not be defined.
-    let insertion_index = follow_up_instructions.get(&extracted_component_ids[0])?.as_ref()?.insertion_index;
+    let insertion_index = follow_up_instructions
+        .get(&extracted_component_ids[0])?
+        .as_ref()?
+        .insertion_index;
 
     let follow_up_instructions = extracted_component_ids
         .iter()
-        .map(|id| follow_up_instructions[id].as_ref().map(|follow_up| &follow_up.instruction))
+        .map(|id| {
+            follow_up_instructions[id]
+                .as_ref()
+                .map(|follow_up| &follow_up.instruction)
+        })
         .collect::<Option<Vec<&Instruction>>>()?;
 
     let scalar_type = follow_up_instructions[0].result_type?;
@@ -348,45 +391,50 @@ fn vectorise(
 
     let mut opcode = same_instruction.class.opcode;
 
-    // In the event that all the components end up being composited again,
-    // we check if there isn't any swizzling happening and if not just replace
-    // the id and leave it to be pruned.
-    if opcode == Op::CompositeConstruct {
-        if same_instruction.operands.len() != extracted_component_ids.len() {
+    if all_items_equal(follow_up_instruction_result_ids.iter()).is_some() {
+        // In the event that all the components end up being composited again,
+        // we check if there isn't any swizzling happening and if not just replace
+        // the id and leave it to be pruned.
+        if opcode == Op::CompositeConstruct {
+            if same_instruction.operands.len() != extracted_component_ids.len() {
+                return None;
+            }
+
+            let is_not_swizzled = same_instruction
+                .operands
+                .iter()
+                .zip(extracted_component_ids)
+                .all(|(operand, component_id)| match operand {
+                    Operand::IdRef(id) => *id == component_id,
+                    _ => false,
+                });
+
+            if !is_not_swizzled {
+                return None;
+            }
+
+            let composite_construct_id = follow_up_instruction_result_ids[0];
+
+            println!(
+                "Removing references to {:?} at {}",
+                Op::CompositeConstruct,
+                composite_construct_id
+            );
+
+            ids_to_replace.insert(composite_construct_id, vector_info.id);
+
+            return Some(());
+        } else {
+            // There shouldn't be any other vectorisable cases where all 3 follow up instructions are the same.
             return None;
         }
-
-        let is_not_swizzled = same_instruction
-            .operands
-            .iter()
-            .zip(extracted_component_ids)
-            .all(|(operand, component_id)| match operand {
-                Operand::IdRef(id) => *id == component_id,
-                _ => false,
-            });
-
-        if !is_not_swizzled {
-            return None;
-        }
-
-        let composite_construct_id = follow_up_instruction_result_ids[0];
-
-        println!(
-            "Removing references to {:?} at {}",
-            Op::CompositeConstruct,
-            composite_construct_id
-        );
-
-        ids_to_replace.insert(composite_construct_id, vector_info.id);
-
-        return Some(());
     }
 
     // Only allow certain types for now
     match opcode {
-        Op::FMul | Op::FAdd | Op::FSub | Op::IEqual | Op::FOrdEqual | Op::Select => {}
+        Op::FMul | Op::FAdd | Op::FSub | Op::IEqual | Op::IAdd | Op::FOrdEqual | Op::Select | Op::ExtInst => {}
         _ => {
-            //println!("!!Unhandled opcode: {:?}!!", opcode);
+            println!("!!Unhandled opcode: {:?}!!", opcode);
             return None;
         }
     }
@@ -396,6 +444,7 @@ fn vectorise(
         &follow_up_instructions,
         composite_extract_info,
         &mut opcode,
+        glsl_ext_inst_id,
     )?;
 
     let vector_id = *next_id;
@@ -480,7 +529,31 @@ fn get_operands(
     follow_up_instructions: &[&Instruction],
     composite_extract_info: &HashMap<Word, CompositeExtractInfo>,
     opcode: &mut Op,
+    glsl_ext_inst_id: Option<Word>,
 ) -> Option<Vec<Operand>> {
+    if *opcode == Op::ExtInst {
+        let glsl_ext_inst_id = glsl_ext_inst_id?;
+
+
+        let (gl_op, other_operand) = all_items_equal_filter(follow_up_instructions.iter()
+            .map(|inst| {
+                if inst.operands[0] != Operand::IdRef(glsl_ext_inst_id) {
+                    return None;
+                }
+
+                // todo: handle case where the scalar op is 2.
+                Some((&inst.operands[1], &inst.operands[3]))
+            }))?;
+
+        // todo: only some gl ops can be vectorised.
+        let gl_op = match gl_op {
+            Operand::LiteralExtInstInteger(int) => rspirv::spirv::GLOp::from_u32(*int)?,
+            _ => return None,
+        };
+
+        return Some(vec![Operand::IdRef(glsl_ext_inst_id), Operand::LiteralExtInstInteger(gl_op as u32), Operand::IdRef(vector_id), other_operand.clone()])
+    }
+
     if *opcode == Op::Select {
         let (true_op, false_op) = all_items_equal(
             follow_up_instructions
