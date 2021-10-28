@@ -38,7 +38,7 @@ Additionally, if the components are extracted and then composted into a vector a
 
 This is highly useful for shaders authored by [rust-gpu](https://github.com/EmbarkStudios/rust-gpu).
 
-When this pass is repeated, it can make simplify some chains of instructions by quite a lot:
+When this pass is repeated, it can simplify some chains of instructions by quite a lot:
 
 ```diff
 @@ -755,35 +710,17 @@
