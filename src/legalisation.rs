@@ -2,7 +2,9 @@ use rspirv::dr::{Instruction, Module, Operand};
 use rspirv::spirv::Op;
 use std::collections::{hash_map::Entry, HashMap};
 
-pub fn dedup_vector_types(module: &mut Module) {
+/// Deduplicate all OpTypeVectors. A SPIR-V module is not valid if multiple OpTypeVectors
+/// are specified with the same scalar type and dimensions.
+pub fn dedup_vector_types_pass(module: &mut Module) {
     let mut ty_and_dimensions_to_vector_id = HashMap::new();
     let mut replacements = HashMap::new();
 
@@ -39,8 +41,11 @@ pub fn dedup_vector_types(module: &mut Module) {
     crate::replace_globals(module, &replacements)
 }
 
-// After the vectorisation pass, some operands need to be changed from constant scalars
-// to vector scalars.
+/// Change the operands for specific functions that return vectors from constant scalars to constant vectors.
+///
+/// This needs to happen aftet the vectorisation pass as passing in scalar operands to certain vector functions it not allowed.
+///
+/// This might result in multiple OpVector types with the same scalar type and dimensions, so the `dedup_vector_types` pass should be ran after this.
 pub fn fix_non_vector_constant_operand(module: &mut Module) {
     let constants = module
         .types_global_values

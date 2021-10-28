@@ -3,9 +3,9 @@ use rspirv::dr::{Instruction, Module, Operand};
 use rspirv::spirv::{Op, Word};
 use std::collections::{hash_map::Entry, HashMap, HashSet};
 
-mod legalisation;
+pub mod legalisation;
 
-use legalisation::{dedup_vector_types, fix_non_vector_constant_operand};
+use legalisation::{dedup_vector_types_pass, fix_non_vector_constant_operand};
 
 pub fn unused_assignment_pruning_pass(module: &mut Module) -> bool {
     let mut result_ids = HashSet::new();
@@ -361,7 +361,7 @@ pub fn vectorisation_pass(module: &mut Module) -> bool {
 
     if changed {
         fix_non_vector_constant_operand(module);
-        dedup_vector_types(module);
+        dedup_vector_types_pass(module);
         unused_assignment_pruning_pass(module);
     }
 
@@ -702,12 +702,12 @@ pub fn all_passes(module: &mut Module) -> bool {
         modified = true;
     }
 
-    dedup_constant_composites(module);
+    modified |= dedup_constant_composites_pass(module);
 
     modified
 }
 
-pub fn dedup_constant_composites(module: &mut Module) -> bool {
+pub fn dedup_constant_composites_pass(module: &mut Module) -> bool {
     let mut ty_and_operand_to_composite_id = HashMap::new();
     let mut replacements = HashMap::new();
 
