@@ -1,0 +1,31 @@
+; SPIR-V
+; Version: 1.0
+; Generator: Google rspirv; 0
+; Bound: 12
+; Schema: 0
+               OpCapability Shader
+          %1 = OpExtInstImport "GLSL.std.450"
+               OpMemoryModel Logical GLSL450
+               OpEntryPoint Fragment %main "main" %out_height %in_height
+               OpExecutionMode %main OriginUpperLeft
+               OpSource GLSL 450
+               OpSourceExtension "GL_GOOGLE_cpp_style_line_directive"
+               OpSourceExtension "GL_GOOGLE_include_directive"
+               OpName %main "main"
+               OpName %out_height "out_height"
+               OpName %in_height "in_height"
+               OpDecorate %out_height Location 0
+               OpDecorate %in_height Location 0
+       %void = OpTypeVoid
+          %3 = OpTypeFunction %void
+      %float = OpTypeFloat 32
+%_ptr_Output_float = OpTypePointer Output %float
+ %out_height = OpVariable %_ptr_Output_float Output
+%_ptr_Input_float = OpTypePointer Input %float
+  %in_height = OpVariable %_ptr_Input_float Input
+       %main = OpFunction %void None %3
+          %5 = OpLabel
+         %11 = OpLoad %float %in_height
+               OpStore %out_height %11
+               OpReturn
+               OpFunctionEnd

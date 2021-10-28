@@ -1,0 +1,174 @@
+; SPIR-V
+; Version: 1.0
+; Generator: Google rspirv; 0
+; Bound: 122
+; Schema: 0
+               OpCapability Shader
+          %1 = OpExtInstImport "GLSL.std.450"
+               OpMemoryModel Logical GLSL450
+               OpEntryPoint Vertex %main "main" %gl_InstanceIndex %position %out_normal %normal %out_uv %uv %out_camera_dir %out_pos %out_view_pos %__1 %tangent
+               OpSource GLSL 450
+               OpSourceExtension "GL_GOOGLE_cpp_style_line_directive"
+               OpSourceExtension "GL_GOOGLE_include_directive"
+               OpName %main "main"
+               OpName %Ship "Ship"
+               OpMemberName %Ship 0 "position"
+               OpMemberName %Ship 1 "facing"
+               OpMemberName %Ship 2 "y_rotation_matrix"
+               OpMemberName %Ship 3 "rotation_speed"
+               OpName %ShipTransforms "ShipTransforms"
+               OpMemberName %ShipTransforms 0 "ship_transforms"
+               OpName %_ ""
+               OpName %gl_InstanceIndex "gl_InstanceIndex"
+               OpName %position "position"
+               OpName %out_normal "out_normal"
+               OpName %normal "normal"
+               OpName %out_uv "out_uv"
+               OpName %uv "uv"
+               OpName %out_camera_dir "out_camera_dir"
+               OpName %Camera "Camera"
+               OpMemberName %Camera 0 "perspective_view"
+               OpMemberName %Camera 1 "view"
+               OpMemberName %Camera 2 "perspective"
+               OpMemberName %Camera 3 "position"
+               OpName %CameraUniform "CameraUniform"
+               OpMemberName %CameraUniform 0 "camera"
+               OpName %__0 ""
+               OpName %out_pos "out_pos"
+               OpName %out_view_pos "out_view_pos"
+               OpName %gl_PerVertex "gl_PerVertex"
+               OpMemberName %gl_PerVertex 0 "gl_Position"
+               OpMemberName %gl_PerVertex 1 "gl_PointSize"
+               OpMemberName %gl_PerVertex 2 "gl_ClipDistance"
+               OpMemberName %gl_PerVertex 3 "gl_CullDistance"
+               OpName %__1 ""
+               OpName %tangent "tangent"
+               OpMemberDecorate %Ship 0 Offset 0
+               OpMemberDecorate %Ship 1 Offset 12
+               OpMemberDecorate %Ship 2 ColMajor
+               OpMemberDecorate %Ship 2 Offset 16
+               OpMemberDecorate %Ship 2 MatrixStride 16
+               OpMemberDecorate %Ship 3 Offset 64
+               OpDecorate %_runtimearr_Ship ArrayStride 80
+               OpMemberDecorate %ShipTransforms 0 NonWritable
+               OpMemberDecorate %ShipTransforms 0 Offset 0
+               OpDecorate %ShipTransforms BufferBlock
+               OpDecorate %_ DescriptorSet 1
+               OpDecorate %_ Binding 0
+               OpDecorate %gl_InstanceIndex BuiltIn InstanceIndex
+               OpDecorate %position Location 0
+               OpDecorate %out_normal Location 0
+               OpDecorate %normal Location 1
+               OpDecorate %out_uv Location 1
+               OpDecorate %uv Location 2
+               OpDecorate %out_camera_dir Location 2
+               OpMemberDecorate %Camera 0 ColMajor
+               OpMemberDecorate %Camera 0 Offset 0
+               OpMemberDecorate %Camera 0 MatrixStride 16
+               OpMemberDecorate %Camera 1 ColMajor
+               OpMemberDecorate %Camera 1 Offset 64
+               OpMemberDecorate %Camera 1 MatrixStride 16
+               OpMemberDecorate %Camera 2 ColMajor
+               OpMemberDecorate %Camera 2 Offset 128
+               OpMemberDecorate %Camera 2 MatrixStride 16
+               OpMemberDecorate %Camera 3 Offset 192
+               OpMemberDecorate %CameraUniform 0 Offset 0
+               OpDecorate %CameraUniform Block
+               OpDecorate %__0 DescriptorSet 0
+               OpDecorate %__0 Binding 0
+               OpDecorate %out_pos Location 3
+               OpDecorate %out_view_pos Location 4
+               OpMemberDecorate %gl_PerVertex 0 BuiltIn Position
+               OpMemberDecorate %gl_PerVertex 1 BuiltIn PointSize
+               OpMemberDecorate %gl_PerVertex 2 BuiltIn ClipDistance
+               OpMemberDecorate %gl_PerVertex 3 BuiltIn CullDistance
+               OpDecorate %gl_PerVertex Block
+               OpDecorate %tangent Location 3
+       %void = OpTypeVoid
+          %3 = OpTypeFunction %void
+      %float = OpTypeFloat 32
+    %v3float = OpTypeVector %float 3
+%mat3v3float = OpTypeMatrix %v3float 3
+       %Ship = OpTypeStruct %v3float %float %mat3v3float %float
+%_runtimearr_Ship = OpTypeRuntimeArray %Ship
+%ShipTransforms = OpTypeStruct %_runtimearr_Ship
+%_ptr_Uniform_ShipTransforms = OpTypePointer Uniform %ShipTransforms
+          %_ = OpVariable %_ptr_Uniform_ShipTransforms Uniform
+        %int = OpTypeInt 32 1
+      %int_0 = OpConstant %int 0
+%_ptr_Input_int = OpTypePointer Input %int
+%gl_InstanceIndex = OpVariable %_ptr_Input_int Input
+%_ptr_Uniform_Ship = OpTypePointer Uniform %Ship
+      %int_1 = OpConstant %int 1
+      %int_3 = OpConstant %int 3
+%_ptr_Input_v3float = OpTypePointer Input %v3float
+   %position = OpVariable %_ptr_Input_v3float Input
+%_ptr_Output_v3float = OpTypePointer Output %v3float
+ %out_normal = OpVariable %_ptr_Output_v3float Output
+     %normal = OpVariable %_ptr_Input_v3float Input
+    %v2float = OpTypeVector %float 2
+%_ptr_Output_v2float = OpTypePointer Output %v2float
+     %out_uv = OpVariable %_ptr_Output_v2float Output
+%_ptr_Input_v2float = OpTypePointer Input %v2float
+         %uv = OpVariable %_ptr_Input_v2float Input
+%out_camera_dir = OpVariable %_ptr_Output_v3float Output
+    %v4float = OpTypeVector %float 4
+%mat4v4float = OpTypeMatrix %v4float 4
+     %Camera = OpTypeStruct %mat4v4float %mat4v4float %mat4v4float %v3float
+%CameraUniform = OpTypeStruct %Camera
+%_ptr_Uniform_CameraUniform = OpTypePointer Uniform %CameraUniform
+        %__0 = OpVariable %_ptr_Uniform_CameraUniform Uniform
+%_ptr_Uniform_v3float = OpTypePointer Uniform %v3float
+    %out_pos = OpVariable %_ptr_Output_v3float Output
+%out_view_pos = OpVariable %_ptr_Output_v3float Output
+%_ptr_Uniform_mat4v4float = OpTypePointer Uniform %mat4v4float
+    %float_1 = OpConstant %float 1
+       %uint = OpTypeInt 32 0
+     %uint_1 = OpConstant %uint 1
+%_arr_float_uint_1 = OpTypeArray %float %uint_1
+%gl_PerVertex = OpTypeStruct %v4float %float %_arr_float_uint_1 %_arr_float_uint_1
+%_ptr_Output_gl_PerVertex = OpTypePointer Output %gl_PerVertex
+        %__1 = OpVariable %_ptr_Output_gl_PerVertex Output
+%_ptr_Output_v4float = OpTypePointer Output %v4float
+%_ptr_Input_v4float = OpTypePointer Input %v4float
+    %tangent = OpVariable %_ptr_Input_v4float Input
+     %uint_0 = OpConstant %uint 0
+%_ptr_Uniform_mat3v3float = OpTypePointer Uniform %mat3v3float
+     %uint_2 = OpConstant %uint 2
+       %main = OpFunction %void None %3
+          %5 = OpLabel
+         %21 = OpLoad %int %gl_InstanceIndex
+         %23 = OpAccessChain %_ptr_Uniform_Ship %_ %int_0 %21
+        %116 = OpAccessChain %_ptr_Uniform_v3float %23 %uint_0
+        %117 = OpLoad %v3float %116
+        %120 = OpAccessChain %_ptr_Uniform_mat3v3float %23 %uint_2
+        %121 = OpLoad %mat3v3float %120
+         %48 = OpLoad %v3float %position
+         %49 = OpMatrixTimesVector %v3float %121 %48
+         %50 = OpFAdd %v3float %117 %49
+         %55 = OpLoad %v3float %normal
+         %56 = OpMatrixTimesVector %v3float %121 %55
+               OpStore %out_normal %56
+         %62 = OpLoad %v2float %uv
+               OpStore %out_uv %62
+         %71 = OpAccessChain %_ptr_Uniform_v3float %__0 %int_0 %int_3
+         %72 = OpLoad %v3float %71
+         %74 = OpFSub %v3float %72 %50
+               OpStore %out_camera_dir %74
+               OpStore %out_pos %50
+         %79 = OpAccessChain %_ptr_Uniform_mat4v4float %__0 %int_0 %int_1
+         %80 = OpLoad %mat4v4float %79
+         %83 = OpCompositeExtract %float %50 0
+         %84 = OpCompositeExtract %float %50 1
+         %85 = OpCompositeExtract %float %50 2
+         %86 = OpCompositeConstruct %v4float %83 %84 %85 %float_1
+         %87 = OpMatrixTimesVector %v4float %80 %86
+         %88 = OpVectorShuffle %v3float %87 %87 0 1 2
+               OpStore %out_view_pos %88
+         %95 = OpAccessChain %_ptr_Uniform_mat4v4float %__0 %int_0 %int_0
+         %96 = OpLoad %mat4v4float %95
+        %102 = OpMatrixTimesVector %v4float %96 %86
+        %104 = OpAccessChain %_ptr_Output_v4float %__1 %int_0
+               OpStore %104 %102
+               OpReturn
+               OpFunctionEnd

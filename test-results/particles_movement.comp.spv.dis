@@ -1,0 +1,180 @@
+; SPIR-V
+; Version: 1.0
+; Generator: Google rspirv; 0
+; Bound: 141
+; Schema: 0
+               OpCapability Shader
+          %1 = OpExtInstImport "GLSL.std.450"
+               OpMemoryModel Logical GLSL450
+               OpEntryPoint GLCompute %main "main" %gl_GlobalInvocationID
+               OpExecutionMode %main LocalSize 64 1 1
+               OpSource GLSL 450
+               OpSourceExtension "GL_GOOGLE_cpp_style_line_directive"
+               OpSourceExtension "GL_GOOGLE_include_directive"
+               OpName %main "main"
+               OpName %gl_GlobalInvocationID "gl_GlobalInvocationID"
+               OpName %Particle "Particle"
+               OpMemberName %Particle 0 "position"
+               OpMemberName %Particle 1 "time_alive_percentage"
+               OpMemberName %Particle 2 "velocity"
+               OpMemberName %Particle 3 "view_space_position"
+               OpName %ParticlesBuffer "ParticlesBuffer"
+               OpMemberName %ParticlesBuffer 0 "particles"
+               OpName %_ ""
+               OpName %Time "Time"
+               OpMemberName %Time 0 "time_since_start"
+               OpMemberName %Time 1 "delta_time"
+               OpName %TimeBuffer "TimeBuffer"
+               OpMemberName %TimeBuffer 0 "time"
+               OpName %__0 ""
+               OpName %ParticlesBufferInfo "ParticlesBufferInfo"
+               OpMemberName %ParticlesBufferInfo 0 "colour"
+               OpMemberName %ParticlesBufferInfo 1 "offset"
+               OpMemberName %ParticlesBufferInfo 2 "particle_duration"
+               OpMemberName %ParticlesBufferInfo 3 "half_size_linear"
+               OpMemberName %ParticlesBufferInfo 4 "last_particle_spawn_time"
+               OpName %ParticlesInfo "ParticlesInfo"
+               OpMemberName %ParticlesInfo 0 "particles_info"
+               OpName %__1 ""
+               OpName %Camera "Camera"
+               OpMemberName %Camera 0 "perspective_view"
+               OpMemberName %Camera 1 "view"
+               OpMemberName %Camera 2 "perspective"
+               OpMemberName %Camera 3 "position"
+               OpName %CameraUniform "CameraUniform"
+               OpMemberName %CameraUniform 0 "camera"
+               OpName %__2 ""
+               OpDecorate %gl_GlobalInvocationID BuiltIn GlobalInvocationId
+               OpMemberDecorate %Particle 0 Offset 0
+               OpMemberDecorate %Particle 1 Offset 12
+               OpMemberDecorate %Particle 2 Offset 16
+               OpMemberDecorate %Particle 3 Offset 32
+               OpDecorate %_runtimearr_Particle ArrayStride 48
+               OpMemberDecorate %ParticlesBuffer 0 Offset 0
+               OpDecorate %ParticlesBuffer BufferBlock
+               OpDecorate %_ DescriptorSet 1
+               OpDecorate %_ Binding 0
+               OpMemberDecorate %Time 0 Offset 0
+               OpMemberDecorate %Time 1 Offset 4
+               OpMemberDecorate %TimeBuffer 0 Offset 0
+               OpDecorate %TimeBuffer Block
+               OpDecorate %__0 DescriptorSet 0
+               OpDecorate %__0 Binding 4
+               OpMemberDecorate %ParticlesBufferInfo 0 Offset 0
+               OpMemberDecorate %ParticlesBufferInfo 1 Offset 12
+               OpMemberDecorate %ParticlesBufferInfo 2 Offset 16
+               OpMemberDecorate %ParticlesBufferInfo 3 Offset 20
+               OpMemberDecorate %ParticlesBufferInfo 4 Offset 24
+               OpMemberDecorate %ParticlesInfo 0 NonWritable
+               OpMemberDecorate %ParticlesInfo 0 Offset 0
+               OpDecorate %ParticlesInfo BufferBlock
+               OpDecorate %__1 DescriptorSet 1
+               OpDecorate %__1 Binding 1
+               OpMemberDecorate %Camera 0 ColMajor
+               OpMemberDecorate %Camera 0 Offset 0
+               OpMemberDecorate %Camera 0 MatrixStride 16
+               OpMemberDecorate %Camera 1 ColMajor
+               OpMemberDecorate %Camera 1 Offset 64
+               OpMemberDecorate %Camera 1 MatrixStride 16
+               OpMemberDecorate %Camera 2 ColMajor
+               OpMemberDecorate %Camera 2 Offset 128
+               OpMemberDecorate %Camera 2 MatrixStride 16
+               OpMemberDecorate %Camera 3 Offset 192
+               OpMemberDecorate %CameraUniform 0 Offset 0
+               OpDecorate %CameraUniform Block
+               OpDecorate %__2 DescriptorSet 0
+               OpDecorate %__2 Binding 0
+       %void = OpTypeVoid
+          %3 = OpTypeFunction %void
+       %uint = OpTypeInt 32 0
+     %v3uint = OpTypeVector %uint 3
+%_ptr_Input_v3uint = OpTypePointer Input %v3uint
+%gl_GlobalInvocationID = OpVariable %_ptr_Input_v3uint Input
+     %uint_0 = OpConstant %uint 0
+%_ptr_Input_uint = OpTypePointer Input %uint
+      %float = OpTypeFloat 32
+    %v3float = OpTypeVector %float 3
+   %Particle = OpTypeStruct %v3float %float %v3float %v3float
+%_runtimearr_Particle = OpTypeRuntimeArray %Particle
+%ParticlesBuffer = OpTypeStruct %_runtimearr_Particle
+%_ptr_Uniform_ParticlesBuffer = OpTypePointer Uniform %ParticlesBuffer
+          %_ = OpVariable %_ptr_Uniform_ParticlesBuffer Uniform
+        %int = OpTypeInt 32 1
+       %bool = OpTypeBool
+      %int_0 = OpConstant %int 0
+%_ptr_Uniform_Particle = OpTypePointer Uniform %Particle
+      %int_1 = OpConstant %int 1
+      %int_2 = OpConstant %int 2
+      %int_3 = OpConstant %int 3
+       %Time = OpTypeStruct %float %float
+ %TimeBuffer = OpTypeStruct %Time
+%_ptr_Uniform_TimeBuffer = OpTypePointer Uniform %TimeBuffer
+        %__0 = OpVariable %_ptr_Uniform_TimeBuffer Uniform
+%_ptr_Uniform_float = OpTypePointer Uniform %float
+%ParticlesBufferInfo = OpTypeStruct %v3float %uint %float %float %float
+%ParticlesInfo = OpTypeStruct %ParticlesBufferInfo
+%_ptr_Uniform_ParticlesInfo = OpTypePointer Uniform %ParticlesInfo
+        %__1 = OpVariable %_ptr_Uniform_ParticlesInfo Uniform
+    %float_1 = OpConstant %float 1
+    %v4float = OpTypeVector %float 4
+%mat4v4float = OpTypeMatrix %v4float 4
+     %Camera = OpTypeStruct %mat4v4float %mat4v4float %mat4v4float %v3float
+%CameraUniform = OpTypeStruct %Camera
+%_ptr_Uniform_CameraUniform = OpTypePointer Uniform %CameraUniform
+        %__2 = OpVariable %_ptr_Uniform_CameraUniform Uniform
+%_ptr_Uniform_mat4v4float = OpTypePointer Uniform %mat4v4float
+%_ptr_Uniform_v3float = OpTypePointer Uniform %v3float
+     %uint_1 = OpConstant %uint 1
+     %uint_2 = OpConstant %uint 2
+       %main = OpFunction %void None %3
+          %5 = OpLabel
+               OpSelectionMerge %119 None
+               OpSwitch %uint_0 %120
+        %120 = OpLabel
+         %14 = OpAccessChain %_ptr_Input_uint %gl_GlobalInvocationID %uint_0
+         %15 = OpLoad %uint %14
+         %24 = OpArrayLength %uint %_ 0
+         %26 = OpBitcast %int %24
+         %27 = OpBitcast %uint %26
+         %29 = OpUGreaterThanEqual %bool %15 %27
+               OpSelectionMerge %31 None
+               OpBranchConditional %29 %30 %31
+         %30 = OpLabel
+               OpBranch %119
+         %31 = OpLabel
+         %39 = OpAccessChain %_ptr_Uniform_Particle %_ %int_0 %15
+        %134 = OpAccessChain %_ptr_Uniform_v3float %39 %uint_0
+        %135 = OpLoad %v3float %134
+        %136 = OpAccessChain %_ptr_Uniform_float %39 %uint_1
+        %137 = OpLoad %float %136
+        %139 = OpAccessChain %_ptr_Uniform_v3float %39 %uint_2
+        %140 = OpLoad %v3float %139
+         %61 = OpAccessChain %_ptr_Uniform_float %__0 %int_0 %int_1
+         %62 = OpLoad %float %61
+         %63 = OpVectorTimesScalar %v3float %140 %62
+         %66 = OpFAdd %v3float %135 %63
+         %76 = OpAccessChain %_ptr_Uniform_float %__1 %int_0 %int_2
+         %77 = OpLoad %float %76
+         %78 = OpFDiv %float %62 %77
+         %79 = OpFAdd %float %137 %78
+         %81 = OpExtInst %float %1 FMin %79 %float_1
+         %90 = OpAccessChain %_ptr_Uniform_mat4v4float %__2 %int_0 %int_1
+         %91 = OpLoad %mat4v4float %90
+         %94 = OpCompositeExtract %float %66 0
+         %95 = OpCompositeExtract %float %66 1
+         %96 = OpCompositeExtract %float %66 2
+         %97 = OpCompositeConstruct %v4float %94 %95 %96 %float_1
+         %98 = OpMatrixTimesVector %v4float %91 %97
+         %99 = OpVectorShuffle %v3float %98 %98 0 1 2
+        %106 = OpAccessChain %_ptr_Uniform_v3float %_ %int_0 %15 %int_0
+               OpStore %106 %66
+        %108 = OpAccessChain %_ptr_Uniform_float %_ %int_0 %15 %int_1
+               OpStore %108 %81
+        %110 = OpAccessChain %_ptr_Uniform_v3float %_ %int_0 %15 %int_2
+               OpStore %110 %140
+        %112 = OpAccessChain %_ptr_Uniform_v3float %_ %int_0 %15 %int_3
+               OpStore %112 %99
+               OpBranch %119
+        %119 = OpLabel
+               OpReturn
+               OpFunctionEnd

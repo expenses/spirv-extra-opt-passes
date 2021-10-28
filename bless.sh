@@ -3,5 +3,4 @@
 cargo run -p spirv-extra-opt-passes $2 -- $1 &&
 echo "$(spirv-dis $1 | wc -l) lines to $(spirv-dis a.spv | wc -l) lines" &&
 spirv-val a.spv &&
-spirv-dis a.spv > a.dis &&
-git diff --no-index test-results/$(basename $1).dis a.dis
+spirv-dis a.spv > test-results/$(basename $1).dis

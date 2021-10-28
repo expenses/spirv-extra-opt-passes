@@ -1,0 +1,136 @@
+; SPIR-V
+; Version: 1.0
+; Generator: Google rspirv; 0
+; Bound: 70
+; Schema: 0
+               OpCapability Shader
+          %1 = OpExtInstImport "GLSL.std.450"
+               OpMemoryModel Logical GLSL450
+               OpEntryPoint Vertex %main "main" %out_normal %normal %out_uv %uv %out_tangent %tangent %out_camera_dir %position %out_pos %out_view_pos %__0
+               OpSource GLSL 450
+               OpSourceExtension "GL_GOOGLE_cpp_style_line_directive"
+               OpSourceExtension "GL_GOOGLE_include_directive"
+               OpName %main "main"
+               OpName %out_normal "out_normal"
+               OpName %normal "normal"
+               OpName %out_uv "out_uv"
+               OpName %uv "uv"
+               OpName %out_tangent "out_tangent"
+               OpName %tangent "tangent"
+               OpName %out_camera_dir "out_camera_dir"
+               OpName %Camera "Camera"
+               OpMemberName %Camera 0 "perspective_view"
+               OpMemberName %Camera 1 "view"
+               OpMemberName %Camera 2 "perspective"
+               OpMemberName %Camera 3 "position"
+               OpName %CameraUniform "CameraUniform"
+               OpMemberName %CameraUniform 0 "camera"
+               OpName %_ ""
+               OpName %position "position"
+               OpName %out_pos "out_pos"
+               OpName %out_view_pos "out_view_pos"
+               OpName %gl_PerVertex "gl_PerVertex"
+               OpMemberName %gl_PerVertex 0 "gl_Position"
+               OpMemberName %gl_PerVertex 1 "gl_PointSize"
+               OpMemberName %gl_PerVertex 2 "gl_ClipDistance"
+               OpMemberName %gl_PerVertex 3 "gl_CullDistance"
+               OpName %__0 ""
+               OpDecorate %out_normal Location 0
+               OpDecorate %normal Location 1
+               OpDecorate %out_uv Location 1
+               OpDecorate %uv Location 2
+               OpDecorate %out_tangent Location 2
+               OpDecorate %tangent Location 3
+               OpDecorate %out_camera_dir Location 3
+               OpMemberDecorate %Camera 0 ColMajor
+               OpMemberDecorate %Camera 0 Offset 0
+               OpMemberDecorate %Camera 0 MatrixStride 16
+               OpMemberDecorate %Camera 1 ColMajor
+               OpMemberDecorate %Camera 1 Offset 64
+               OpMemberDecorate %Camera 1 MatrixStride 16
+               OpMemberDecorate %Camera 2 ColMajor
+               OpMemberDecorate %Camera 2 Offset 128
+               OpMemberDecorate %Camera 2 MatrixStride 16
+               OpMemberDecorate %Camera 3 Offset 192
+               OpMemberDecorate %CameraUniform 0 Offset 0
+               OpDecorate %CameraUniform Block
+               OpDecorate %_ DescriptorSet 0
+               OpDecorate %_ Binding 0
+               OpDecorate %position Location 0
+               OpDecorate %out_pos Location 4
+               OpDecorate %out_view_pos Location 5
+               OpMemberDecorate %gl_PerVertex 0 BuiltIn Position
+               OpMemberDecorate %gl_PerVertex 1 BuiltIn PointSize
+               OpMemberDecorate %gl_PerVertex 2 BuiltIn ClipDistance
+               OpMemberDecorate %gl_PerVertex 3 BuiltIn CullDistance
+               OpDecorate %gl_PerVertex Block
+       %void = OpTypeVoid
+          %3 = OpTypeFunction %void
+      %float = OpTypeFloat 32
+    %v3float = OpTypeVector %float 3
+%_ptr_Output_v3float = OpTypePointer Output %v3float
+ %out_normal = OpVariable %_ptr_Output_v3float Output
+%_ptr_Input_v3float = OpTypePointer Input %v3float
+     %normal = OpVariable %_ptr_Input_v3float Input
+    %v2float = OpTypeVector %float 2
+%_ptr_Output_v2float = OpTypePointer Output %v2float
+     %out_uv = OpVariable %_ptr_Output_v2float Output
+%_ptr_Input_v2float = OpTypePointer Input %v2float
+         %uv = OpVariable %_ptr_Input_v2float Input
+    %v4float = OpTypeVector %float 4
+%_ptr_Output_v4float = OpTypePointer Output %v4float
+%out_tangent = OpVariable %_ptr_Output_v4float Output
+%_ptr_Input_v4float = OpTypePointer Input %v4float
+    %tangent = OpVariable %_ptr_Input_v4float Input
+%out_camera_dir = OpVariable %_ptr_Output_v3float Output
+%mat4v4float = OpTypeMatrix %v4float 4
+     %Camera = OpTypeStruct %mat4v4float %mat4v4float %mat4v4float %v3float
+%CameraUniform = OpTypeStruct %Camera
+%_ptr_Uniform_CameraUniform = OpTypePointer Uniform %CameraUniform
+          %_ = OpVariable %_ptr_Uniform_CameraUniform Uniform
+        %int = OpTypeInt 32 1
+      %int_0 = OpConstant %int 0
+      %int_3 = OpConstant %int 3
+%_ptr_Uniform_v3float = OpTypePointer Uniform %v3float
+   %position = OpVariable %_ptr_Input_v3float Input
+    %out_pos = OpVariable %_ptr_Output_v3float Output
+%out_view_pos = OpVariable %_ptr_Output_v3float Output
+      %int_1 = OpConstant %int 1
+%_ptr_Uniform_mat4v4float = OpTypePointer Uniform %mat4v4float
+    %float_1 = OpConstant %float 1
+       %uint = OpTypeInt 32 0
+     %uint_1 = OpConstant %uint 1
+%_arr_float_uint_1 = OpTypeArray %float %uint_1
+%gl_PerVertex = OpTypeStruct %v4float %float %_arr_float_uint_1 %_arr_float_uint_1
+%_ptr_Output_gl_PerVertex = OpTypePointer Output %gl_PerVertex
+        %__0 = OpVariable %_ptr_Output_gl_PerVertex Output
+       %main = OpFunction %void None %3
+          %5 = OpLabel
+         %12 = OpLoad %v3float %normal
+               OpStore %out_normal %12
+         %18 = OpLoad %v2float %uv
+               OpStore %out_uv %18
+         %24 = OpLoad %v4float %tangent
+               OpStore %out_tangent %24
+         %35 = OpAccessChain %_ptr_Uniform_v3float %_ %int_0 %int_3
+         %36 = OpLoad %v3float %35
+         %38 = OpLoad %v3float %position
+         %39 = OpFSub %v3float %36 %38
+               OpStore %out_camera_dir %39
+               OpStore %out_pos %38
+         %45 = OpAccessChain %_ptr_Uniform_mat4v4float %_ %int_0 %int_1
+         %46 = OpLoad %mat4v4float %45
+         %49 = OpCompositeExtract %float %38 0
+         %50 = OpCompositeExtract %float %38 1
+         %51 = OpCompositeExtract %float %38 2
+         %52 = OpCompositeConstruct %v4float %49 %50 %51 %float_1
+         %53 = OpMatrixTimesVector %v4float %46 %52
+         %54 = OpVectorShuffle %v3float %53 %53 0 1 2
+               OpStore %out_view_pos %54
+         %61 = OpAccessChain %_ptr_Uniform_mat4v4float %_ %int_0 %int_0
+         %62 = OpLoad %mat4v4float %61
+         %68 = OpMatrixTimesVector %v4float %62 %52
+         %69 = OpAccessChain %_ptr_Output_v4float %__0 %int_0
+               OpStore %69 %68
+               OpReturn
+               OpFunctionEnd

@@ -7,14 +7,8 @@ mod legalisation;
 use legalisation::{dedup_vector_types, fix_non_vector_constant_operand};
 
 pub fn unused_assignment_pruning_pass(module: &mut Module) -> bool {
-    let mut unused = HashSet::new();
-
-    fn is_forward_referenced(opcode: Op) -> bool {
-        match opcode {
-            Op::Label | Op::Phi | Op::Function => true,
-            _ => false,
-        }
-    }
+    let mut result_ids = HashSet::new();
+    let mut referenced_ids = HashSet::new();
 
     // Todo: it's probably safe to prune glsl extension functions
     fn is_extension_function(opcode: Op) -> bool {
@@ -24,48 +18,47 @@ pub fn unused_assignment_pruning_pass(module: &mut Module) -> bool {
         }
     }
 
-    fn handle_instruction(unused: &mut HashSet<Word>, instruction: &Instruction) {
+    fn handle_instruction(referenced_ids: &mut HashSet<Word>, result_ids: &mut HashSet<Word>, instruction: &Instruction) {
         for operand in &instruction.operands {
             if let Operand::IdRef(id) = operand {
-                unused.remove(id);
+                referenced_ids.insert(*id);
             }
         }
 
         if let Some(result_type) = &instruction.result_type {
-            unused.remove(result_type);
+            referenced_ids.insert(*result_type);
         }
 
-        // Forwards referenced types are used before they are assigned, so we ignore them as we're doing a single pass.
-        if is_forward_referenced(instruction.class.opcode)
-            || is_extension_function(instruction.class.opcode)
-        {
+        if is_extension_function(instruction.class.opcode) {
             return;
         }
 
         if let Some(result_id) = instruction.result_id {
-            unused.insert(result_id);
+            result_ids.insert(result_id);
         }
     }
 
     for instruction in &module.types_global_values {
-        handle_instruction(&mut unused, instruction);
+        handle_instruction(&mut referenced_ids, &mut result_ids, instruction);
     }
 
     for function in &module.functions {
         if let Some(instruction) = &function.def {
-            handle_instruction(&mut unused, instruction);
+            handle_instruction(&mut referenced_ids, &mut result_ids, instruction);
         }
 
         for block in &function.blocks {
             for instruction in &block.instructions {
-                handle_instruction(&mut unused, instruction);
+                handle_instruction(&mut referenced_ids, &mut result_ids, instruction);
             }
         }
     }
 
     for instruction in &module.entry_points {
-        handle_instruction(&mut unused, instruction);
+        handle_instruction(&mut referenced_ids, &mut result_ids, instruction);
     }
+
+    let unused = result_ids.difference(&referenced_ids).collect::<HashSet<_>>();
 
     module
         .types_global_values
@@ -85,7 +78,7 @@ pub fn unused_assignment_pruning_pass(module: &mut Module) -> bool {
         }
     }
 
-    let mut removed_debug_name = false;
+    let mut removed_debug_name_or_annotation = false;
 
     module.debug_names.retain(|instruction| {
         let mut has_id_operands = false;
@@ -100,12 +93,30 @@ pub fn unused_assignment_pruning_pass(module: &mut Module) -> bool {
 
         let remove = has_id_operands && all_id_operands_are_unused;
 
-        removed_debug_name |= remove;
+        removed_debug_name_or_annotation |= remove;
 
         !remove
     });
 
-    !unused.is_empty() || removed_debug_name
+    module.annotations.retain(|instruction| {
+        let mut has_id_operands = false;
+        let mut all_id_operands_are_unused = true;
+
+        for operand in &instruction.operands {
+            if let Operand::IdRef(id) = operand {
+                has_id_operands = true;
+                all_id_operands_are_unused &= unused.contains(id);
+            }
+        }
+
+        let remove = has_id_operands && all_id_operands_are_unused;
+
+        removed_debug_name_or_annotation |= remove;
+
+        !remove
+    });
+
+    !unused.is_empty() || removed_debug_name_or_annotation
 }
 
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -321,7 +332,7 @@ fn vectorise(
     let same_instruction =
         all_items_equal_by_key(follow_up_instructions.iter(), |inst| inst.class.opcode)?;
 
-    let opcode = same_instruction.class.opcode;
+    let mut opcode = same_instruction.class.opcode;
 
     // In the event that all the components end up being composited again,
     // we check if there isn't any swizzling happening and if not just replace
@@ -359,19 +370,9 @@ fn vectorise(
 
     // Only allow certain types for now
     match opcode {
-        Op::FMul | Op::FAdd | Op::IEqual | Op::FOrdEqual => {}
+        Op::FMul | Op::FAdd | Op::FSub | Op::IEqual | Op::FOrdEqual => {}
         _ => return None,
     }
-
-    let vector_opcode = match opcode {
-        Op::FMul => Op::VectorTimesScalar,
-        _ => opcode,
-    };
-
-    let shared_first_operand =
-        all_items_equal(follow_up_instructions.iter().map(|inst| &inst.operands[0]));
-    let shared_second_operand =
-        all_items_equal(follow_up_instructions.iter().map(|inst| &inst.operands[1]));
 
     fn vector_operand(
         operand_index: usize,
@@ -394,22 +395,32 @@ fn vectorise(
         }))
     }
 
+    let shared_first_operand =
+        all_items_equal(follow_up_instructions.iter().map(|inst| &inst.operands[0]));
+    let shared_second_operand =
+        all_items_equal(follow_up_instructions.iter().map(|inst| &inst.operands[1]));
+    
     let vector_first_operand = vector_operand(0, &follow_up_instructions, composite_extract_info);
 
     let vector_second_operand = vector_operand(1, &follow_up_instructions, composite_extract_info);
 
-    let (other_operand, vector_is_first_operand) = shared_first_operand
+    let (other_operand, vector_is_first_operand, other_operand_is_vector) = shared_first_operand
         .map(|operand| {
-            let vector_is_first = vector_opcode == Op::VectorTimesScalar;
-            (operand.clone(), vector_is_first)
+            // The operation will get turned into OpVectorTimesScalar which needs the vector to be in the first position.
+            let vector_is_first = opcode == Op::FMul;
+            (operand.clone(), vector_is_first, false)
         })
-        .or_else(|| shared_second_operand.map(|operand| (operand.clone(), true)))
-        .or_else(|| vector_first_operand.map(|id| (Operand::IdRef(id), false)))
-        .or_else(|| vector_second_operand.map(|id| (Operand::IdRef(id), true)))?;
+        .or_else(|| shared_second_operand.map(|operand| (operand.clone(), true, false)))
+        .or_else(|| vector_first_operand.map(|id| (Operand::IdRef(id), false, true)))
+        .or_else(|| vector_second_operand.map(|id| (Operand::IdRef(id), true, true)))?;
+
+    if opcode == Op::FMul && !other_operand_is_vector {
+        opcode = Op::VectorTimesScalar;
+    }
 
     println!(
         "Replacing {} with {:?}",
-        extracted_component_ids[0], vector_opcode
+        extracted_component_ids[0], opcode
     );
 
     let vector_id = *next_id;
@@ -432,7 +443,7 @@ fn vectorise(
     instructions.insert(
         vector_info.insertion_index,
         Instruction::new(
-            vector_opcode,
+            opcode,
             Some(vector_id),
             Some(inserted_instruction_id),
             if vector_is_first_operand {
@@ -520,5 +531,11 @@ fn all_items_equal_by_key<I, T: PartialEq>(
 }
 
 pub fn all_passes(module: &mut Module) -> bool {
-    vectorisation_pass(module) || unused_assignment_pruning_pass(module)
+    let mut modified = vectorisation_pass(module);
+
+    while unused_assignment_pruning_pass(module) {
+        modified = true;
+    }
+
+    modified
 }

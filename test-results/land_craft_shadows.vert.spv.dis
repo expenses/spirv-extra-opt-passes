@@ -1,0 +1,124 @@
+; SPIR-V
+; Version: 1.0
+; Generator: Google rspirv; 0
+; Bound: 90
+; Schema: 0
+               OpCapability Shader
+          %1 = OpExtInstImport "GLSL.std.450"
+               OpMemoryModel Logical GLSL450
+               OpEntryPoint Vertex %main "main" %gl_InstanceIndex %position %__0 %normal %uv %tangent
+               OpSource GLSL 450
+               OpSourceExtension "GL_GOOGLE_cpp_style_line_directive"
+               OpSourceExtension "GL_GOOGLE_include_directive"
+               OpName %main "main"
+               OpName %LandCraft "LandCraft"
+               OpMemberName %LandCraft 0 "position"
+               OpMemberName %LandCraft 1 "facing"
+               OpMemberName %LandCraft 2 "rotation_matrix"
+               OpName %LandCraftBuffer "LandCraftBuffer"
+               OpMemberName %LandCraftBuffer 0 "crafts"
+               OpName %_ ""
+               OpName %gl_InstanceIndex "gl_InstanceIndex"
+               OpName %position "position"
+               OpName %gl_PerVertex "gl_PerVertex"
+               OpMemberName %gl_PerVertex 0 "gl_Position"
+               OpMemberName %gl_PerVertex 1 "gl_PointSize"
+               OpMemberName %gl_PerVertex 2 "gl_ClipDistance"
+               OpMemberName %gl_PerVertex 3 "gl_CullDistance"
+               OpName %__0 ""
+               OpName %SunProjectionView "SunProjectionView"
+               OpMemberName %SunProjectionView 0 "projection_view"
+               OpName %__1 ""
+               OpName %normal "normal"
+               OpName %uv "uv"
+               OpName %tangent "tangent"
+               OpMemberDecorate %LandCraft 0 Offset 0
+               OpMemberDecorate %LandCraft 1 Offset 12
+               OpMemberDecorate %LandCraft 2 ColMajor
+               OpMemberDecorate %LandCraft 2 Offset 16
+               OpMemberDecorate %LandCraft 2 MatrixStride 16
+               OpDecorate %_runtimearr_LandCraft ArrayStride 64
+               OpMemberDecorate %LandCraftBuffer 0 NonWritable
+               OpMemberDecorate %LandCraftBuffer 0 Offset 0
+               OpDecorate %LandCraftBuffer BufferBlock
+               OpDecorate %_ DescriptorSet 1
+               OpDecorate %_ Binding 0
+               OpDecorate %gl_InstanceIndex BuiltIn InstanceIndex
+               OpDecorate %position Location 0
+               OpMemberDecorate %gl_PerVertex 0 BuiltIn Position
+               OpMemberDecorate %gl_PerVertex 1 BuiltIn PointSize
+               OpMemberDecorate %gl_PerVertex 2 BuiltIn ClipDistance
+               OpMemberDecorate %gl_PerVertex 3 BuiltIn CullDistance
+               OpDecorate %gl_PerVertex Block
+               OpMemberDecorate %SunProjectionView 0 ColMajor
+               OpMemberDecorate %SunProjectionView 0 Offset 0
+               OpMemberDecorate %SunProjectionView 0 MatrixStride 16
+               OpDecorate %SunProjectionView Block
+               OpDecorate %__1 DescriptorSet 0
+               OpDecorate %__1 Binding 0
+               OpDecorate %normal Location 1
+               OpDecorate %uv Location 2
+               OpDecorate %tangent Location 3
+       %void = OpTypeVoid
+          %3 = OpTypeFunction %void
+      %float = OpTypeFloat 32
+    %v3float = OpTypeVector %float 3
+%mat3v3float = OpTypeMatrix %v3float 3
+  %LandCraft = OpTypeStruct %v3float %float %mat3v3float
+%_runtimearr_LandCraft = OpTypeRuntimeArray %LandCraft
+%LandCraftBuffer = OpTypeStruct %_runtimearr_LandCraft
+%_ptr_Uniform_LandCraftBuffer = OpTypePointer Uniform %LandCraftBuffer
+          %_ = OpVariable %_ptr_Uniform_LandCraftBuffer Uniform
+        %int = OpTypeInt 32 1
+      %int_0 = OpConstant %int 0
+%_ptr_Input_int = OpTypePointer Input %int
+%gl_InstanceIndex = OpVariable %_ptr_Input_int Input
+%_ptr_Uniform_LandCraft = OpTypePointer Uniform %LandCraft
+%_ptr_Input_v3float = OpTypePointer Input %v3float
+   %position = OpVariable %_ptr_Input_v3float Input
+    %v4float = OpTypeVector %float 4
+       %uint = OpTypeInt 32 0
+     %uint_1 = OpConstant %uint 1
+%_arr_float_uint_1 = OpTypeArray %float %uint_1
+%gl_PerVertex = OpTypeStruct %v4float %float %_arr_float_uint_1 %_arr_float_uint_1
+%_ptr_Output_gl_PerVertex = OpTypePointer Output %gl_PerVertex
+        %__0 = OpVariable %_ptr_Output_gl_PerVertex Output
+%mat4v4float = OpTypeMatrix %v4float 4
+%SunProjectionView = OpTypeStruct %mat4v4float
+%_ptr_Uniform_SunProjectionView = OpTypePointer Uniform %SunProjectionView
+        %__1 = OpVariable %_ptr_Uniform_SunProjectionView Uniform
+%_ptr_Uniform_mat4v4float = OpTypePointer Uniform %mat4v4float
+    %float_1 = OpConstant %float 1
+%_ptr_Output_v4float = OpTypePointer Output %v4float
+     %normal = OpVariable %_ptr_Input_v3float Input
+    %v2float = OpTypeVector %float 2
+%_ptr_Input_v2float = OpTypePointer Input %v2float
+         %uv = OpVariable %_ptr_Input_v2float Input
+%_ptr_Input_v4float = OpTypePointer Input %v4float
+    %tangent = OpVariable %_ptr_Input_v4float Input
+%_ptr_Uniform_v3float = OpTypePointer Uniform %v3float
+     %uint_0 = OpConstant %uint 0
+%_ptr_Uniform_mat3v3float = OpTypePointer Uniform %mat3v3float
+     %uint_2 = OpConstant %uint 2
+       %main = OpFunction %void None %3
+          %5 = OpLabel
+         %21 = OpLoad %int %gl_InstanceIndex
+         %23 = OpAccessChain %_ptr_Uniform_LandCraft %_ %int_0 %21
+         %84 = OpAccessChain %_ptr_Uniform_v3float %23 %uint_0
+         %85 = OpLoad %v3float %84
+         %88 = OpAccessChain %_ptr_Uniform_mat3v3float %23 %uint_2
+         %89 = OpLoad %mat3v3float %88
+         %43 = OpLoad %v3float %position
+         %44 = OpMatrixTimesVector %v3float %89 %43
+         %45 = OpFAdd %v3float %85 %44
+         %58 = OpAccessChain %_ptr_Uniform_mat4v4float %__1 %int_0
+         %59 = OpLoad %mat4v4float %58
+         %62 = OpCompositeExtract %float %45 0
+         %63 = OpCompositeExtract %float %45 1
+         %64 = OpCompositeExtract %float %45 2
+         %65 = OpCompositeConstruct %v4float %62 %63 %64 %float_1
+         %66 = OpMatrixTimesVector %v4float %59 %65
+         %68 = OpAccessChain %_ptr_Output_v4float %__0 %int_0
+               OpStore %68 %66
+               OpReturn
+               OpFunctionEnd

@@ -1,0 +1,126 @@
+; SPIR-V
+; Version: 1.0
+; Generator: Google rspirv; 0
+; Bound: 96
+; Schema: 0
+               OpCapability Shader
+          %1 = OpExtInstImport "GLSL.std.450"
+               OpMemoryModel Logical GLSL450
+               OpEntryPoint Vertex %main "main" %gl_InstanceIndex %position %__0 %normal %uv %tangent
+               OpSource GLSL 450
+               OpSourceExtension "GL_GOOGLE_cpp_style_line_directive"
+               OpSourceExtension "GL_GOOGLE_include_directive"
+               OpName %main "main"
+               OpName %Ship "Ship"
+               OpMemberName %Ship 0 "position"
+               OpMemberName %Ship 1 "facing"
+               OpMemberName %Ship 2 "y_rotation_matrix"
+               OpMemberName %Ship 3 "rotation_speed"
+               OpName %ShipTransforms "ShipTransforms"
+               OpMemberName %ShipTransforms 0 "ship_transforms"
+               OpName %_ ""
+               OpName %gl_InstanceIndex "gl_InstanceIndex"
+               OpName %position "position"
+               OpName %gl_PerVertex "gl_PerVertex"
+               OpMemberName %gl_PerVertex 0 "gl_Position"
+               OpMemberName %gl_PerVertex 1 "gl_PointSize"
+               OpMemberName %gl_PerVertex 2 "gl_ClipDistance"
+               OpMemberName %gl_PerVertex 3 "gl_CullDistance"
+               OpName %__0 ""
+               OpName %SunProjectionView "SunProjectionView"
+               OpMemberName %SunProjectionView 0 "projection_view"
+               OpName %__1 ""
+               OpName %normal "normal"
+               OpName %uv "uv"
+               OpName %tangent "tangent"
+               OpMemberDecorate %Ship 0 Offset 0
+               OpMemberDecorate %Ship 1 Offset 12
+               OpMemberDecorate %Ship 2 ColMajor
+               OpMemberDecorate %Ship 2 Offset 16
+               OpMemberDecorate %Ship 2 MatrixStride 16
+               OpMemberDecorate %Ship 3 Offset 64
+               OpDecorate %_runtimearr_Ship ArrayStride 80
+               OpMemberDecorate %ShipTransforms 0 NonWritable
+               OpMemberDecorate %ShipTransforms 0 Offset 0
+               OpDecorate %ShipTransforms BufferBlock
+               OpDecorate %_ DescriptorSet 1
+               OpDecorate %_ Binding 0
+               OpDecorate %gl_InstanceIndex BuiltIn InstanceIndex
+               OpDecorate %position Location 0
+               OpMemberDecorate %gl_PerVertex 0 BuiltIn Position
+               OpMemberDecorate %gl_PerVertex 1 BuiltIn PointSize
+               OpMemberDecorate %gl_PerVertex 2 BuiltIn ClipDistance
+               OpMemberDecorate %gl_PerVertex 3 BuiltIn CullDistance
+               OpDecorate %gl_PerVertex Block
+               OpMemberDecorate %SunProjectionView 0 ColMajor
+               OpMemberDecorate %SunProjectionView 0 Offset 0
+               OpMemberDecorate %SunProjectionView 0 MatrixStride 16
+               OpDecorate %SunProjectionView Block
+               OpDecorate %__1 DescriptorSet 0
+               OpDecorate %__1 Binding 0
+               OpDecorate %normal Location 1
+               OpDecorate %uv Location 2
+               OpDecorate %tangent Location 3
+       %void = OpTypeVoid
+          %3 = OpTypeFunction %void
+      %float = OpTypeFloat 32
+    %v3float = OpTypeVector %float 3
+%mat3v3float = OpTypeMatrix %v3float 3
+       %Ship = OpTypeStruct %v3float %float %mat3v3float %float
+%_runtimearr_Ship = OpTypeRuntimeArray %Ship
+%ShipTransforms = OpTypeStruct %_runtimearr_Ship
+%_ptr_Uniform_ShipTransforms = OpTypePointer Uniform %ShipTransforms
+          %_ = OpVariable %_ptr_Uniform_ShipTransforms Uniform
+        %int = OpTypeInt 32 1
+      %int_0 = OpConstant %int 0
+%_ptr_Input_int = OpTypePointer Input %int
+%gl_InstanceIndex = OpVariable %_ptr_Input_int Input
+%_ptr_Uniform_Ship = OpTypePointer Uniform %Ship
+%_ptr_Input_v3float = OpTypePointer Input %v3float
+   %position = OpVariable %_ptr_Input_v3float Input
+    %v4float = OpTypeVector %float 4
+       %uint = OpTypeInt 32 0
+     %uint_1 = OpConstant %uint 1
+%_arr_float_uint_1 = OpTypeArray %float %uint_1
+%gl_PerVertex = OpTypeStruct %v4float %float %_arr_float_uint_1 %_arr_float_uint_1
+%_ptr_Output_gl_PerVertex = OpTypePointer Output %gl_PerVertex
+        %__0 = OpVariable %_ptr_Output_gl_PerVertex Output
+%mat4v4float = OpTypeMatrix %v4float 4
+%SunProjectionView = OpTypeStruct %mat4v4float
+%_ptr_Uniform_SunProjectionView = OpTypePointer Uniform %SunProjectionView
+        %__1 = OpVariable %_ptr_Uniform_SunProjectionView Uniform
+%_ptr_Uniform_mat4v4float = OpTypePointer Uniform %mat4v4float
+    %float_1 = OpConstant %float 1
+%_ptr_Output_v4float = OpTypePointer Output %v4float
+     %normal = OpVariable %_ptr_Input_v3float Input
+    %v2float = OpTypeVector %float 2
+%_ptr_Input_v2float = OpTypePointer Input %v2float
+         %uv = OpVariable %_ptr_Input_v2float Input
+%_ptr_Input_v4float = OpTypePointer Input %v4float
+    %tangent = OpVariable %_ptr_Input_v4float Input
+%_ptr_Uniform_v3float = OpTypePointer Uniform %v3float
+     %uint_0 = OpConstant %uint 0
+%_ptr_Uniform_mat3v3float = OpTypePointer Uniform %mat3v3float
+     %uint_2 = OpConstant %uint 2
+       %main = OpFunction %void None %3
+          %5 = OpLabel
+         %21 = OpLoad %int %gl_InstanceIndex
+         %23 = OpAccessChain %_ptr_Uniform_Ship %_ %int_0 %21
+         %90 = OpAccessChain %_ptr_Uniform_v3float %23 %uint_0
+         %91 = OpLoad %v3float %90
+         %94 = OpAccessChain %_ptr_Uniform_mat3v3float %23 %uint_2
+         %95 = OpLoad %mat3v3float %94
+         %48 = OpLoad %v3float %position
+         %49 = OpMatrixTimesVector %v3float %95 %48
+         %50 = OpFAdd %v3float %91 %49
+         %63 = OpAccessChain %_ptr_Uniform_mat4v4float %__1 %int_0
+         %64 = OpLoad %mat4v4float %63
+         %67 = OpCompositeExtract %float %50 0
+         %68 = OpCompositeExtract %float %50 1
+         %69 = OpCompositeExtract %float %50 2
+         %70 = OpCompositeConstruct %v4float %67 %68 %69 %float_1
+         %71 = OpMatrixTimesVector %v4float %64 %70
+         %73 = OpAccessChain %_ptr_Output_v4float %__0 %int_0
+               OpStore %73 %71
+               OpReturn
+               OpFunctionEnd
