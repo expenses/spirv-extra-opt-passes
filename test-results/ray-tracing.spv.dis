@@ -1,7 +1,7 @@
 ; SPIR-V
 ; Version: 1.4
 ; Generator: Google rspirv; 0
-; Bound: 2108
+; Bound: 2101
 ; Schema: 0
                OpCapability Int64
                OpCapability Int8
@@ -133,6 +133,7 @@
 %_ptr_Function_v3float = OpTypePointer Function %v3float
 %_ptr_RayPayloadNV_v3float = OpTypePointer RayPayloadNV %v3float
 %_ptr_IncomingRayPayloadNV_v3float = OpTypePointer IncomingRayPayloadNV %v3float
+%_ptr_PhysicalStorageBuffer_v3float = OpTypePointer PhysicalStorageBuffer %v3float
 %_ptr_Function_v4float = OpTypePointer Function %v4float
 %_ptr_Function__struct_74 = OpTypePointer Function %_struct_74
 %_ptr_PhysicalStorageBuffer__struct_74 = OpTypePointer PhysicalStorageBuffer %_struct_74
@@ -255,10 +256,10 @@
        %1868 = OpConstantComposite %v3float %float_0_749019623 %float_0 %float_0_325490206
        %1869 = OpConstantComposite %v3float %float_0_568627477 %float_0 %float_0_254901975
      %v3bool = OpTypeVector %bool 3
-       %1930 = OpConstantComposite %v3float %float_0_454545438 %float_0_454545438 %float_0_454545438
+       %1931 = OpConstantComposite %v3float %float_0_454545438 %float_0_454545438 %float_0_454545438
     %v3uchar = OpTypeVector %uchar 3
-       %1961 = OpConstantComposite %v3uchar %uchar_1 %uchar_1 %uchar_1
-       %1963 = OpConstantComposite %v3uchar %uchar_0 %uchar_0 %uchar_0
+       %1967 = OpConstantComposite %v3uchar %uchar_1 %uchar_1 %uchar_1
+       %1969 = OpConstantComposite %v3uchar %uchar_0 %uchar_0 %uchar_0
           %2 = OpFunction %void None %130
         %341 = OpLabel
         %342 = OpAccessChain %_ptr_IncomingRayPayloadNV_uchar %3 %uint_0
@@ -268,7 +269,12 @@
           %4 = OpFunction %void None %130
         %344 = OpLabel
         %345 = OpLoad %v3float %5 Aligned 16
-       %1880 = OpFMul %v3float %345 %345
+        %347 = OpAccessChain %_ptr_PushConstant_ulong %7 %uint_0 %uint_1
+        %348 = OpLoad %ulong %347 Aligned 8
+        %349 = OpConvertUToPtr %_ptr_PhysicalStorageBuffer__struct_75 %348
+        %350 = OpAccessChain %_ptr_PhysicalStorageBuffer_v3float %349 %uint_2
+        %351 = OpLoad %v3float %350 Aligned 16
+       %1880 = OpFMul %v3float %345 %351
        %1881 = OpCompositeExtract %float %1880 0
        %1882 = OpCompositeExtract %float %1880 1
        %1883 = OpCompositeExtract %float %1880 2
@@ -507,17 +513,17 @@
         %598 = OpAccessChain %_ptr_RayPayloadNV_v3float %9 %uint_2
         %599 = OpLoad %v3float %598 Aligned 16
        %1885 = OpFOrdEqual %v3bool %599 %1859
-       %1932 = OpSelect %v3uchar %1885 %1961 %1963
-       %1933 = OpCompositeExtract %uchar %1932 0
-       %1934 = OpCompositeExtract %uchar %1932 1
-       %1935 = OpCompositeExtract %uchar %1932 2
-        %609 = OpINotEqual %bool %1933 %uchar_0
+       %1933 = OpSelect %v3uchar %1885 %1967 %1969
+       %1934 = OpCompositeExtract %uchar %1933 0
+       %1935 = OpCompositeExtract %uchar %1933 1
+       %1936 = OpCompositeExtract %uchar %1933 2
+        %609 = OpINotEqual %bool %1934 %uchar_0
                OpSelectionMerge %610 None
                OpBranchConditional %609 %611 %612
         %612 = OpLabel
                OpBranch %610
         %611 = OpLabel
-        %613 = OpINotEqual %bool %1934 %uchar_0
+        %613 = OpINotEqual %bool %1935 %uchar_0
         %614 = OpSelect %uchar %613 %uchar_1 %uchar_0
                OpBranch %610
         %610 = OpLabel
@@ -528,7 +534,7 @@
         %620 = OpLabel
                OpBranch %618
         %619 = OpLabel
-        %621 = OpINotEqual %bool %1935 %uchar_0
+        %621 = OpINotEqual %bool %1936 %uchar_0
         %622 = OpSelect %uchar %621 %uchar_1 %uchar_0
                OpBranch %618
         %618 = OpLabel
@@ -710,6 +716,8 @@
        %1443 = OpFSub %float %float_3 %1442
        %1444 = OpFMul %float %1441 %1443
                OpStore %1435 %1444
+       %1279 = OpFSub %float %float_1 %1444
+       %1280 = OpFMul %float %1406 %1279
                OpStore %1483 %false
                OpSelectionMerge %1501 None
                OpBranchConditional %1422 %1499 %1500
@@ -729,6 +737,7 @@
                OpStore %1484 %1876
                OpStore %1485 %1876
                OpStore %1473 %1406
+       %1284 = OpFSub %float %float_1 %1406
                OpStore %1521 %false
                OpSelectionMerge %1539 None
                OpBranchConditional %1460 %1537 %1538
@@ -759,6 +768,9 @@
        %1353 = OpLabel
                OpUnreachable
        %1289 = OpLabel
+       %1290 = OpInBoundsAccessChain %_ptr_Function_v3float %1229 %1264
+       %1291 = OpLoad %v3float %1290 Aligned 16
+       %1890 = OpVectorTimesScalar %v3float %1291 %1280
        %1298 = OpULessThan %bool %1267 %uint_10
                OpSelectionMerge %1346 None
                OpBranchConditional %1298 %1299 %1339
@@ -770,6 +782,10 @@
        %1345 = OpLabel
                OpUnreachable
        %1299 = OpLabel
+       %1300 = OpInBoundsAccessChain %_ptr_Function_v3float %1229 %1267
+       %1301 = OpLoad %v3float %1300 Aligned 16
+       %1895 = OpVectorTimesScalar %v3float %1301 %1284
+       %1938 = OpFAdd %v3float %1890 %1895
        %1311 = OpULessThan %bool %1270 %uint_10
                OpSelectionMerge %1338 None
                OpBranchConditional %1311 %1312 %1331
@@ -783,17 +799,17 @@
        %1312 = OpLabel
        %1313 = OpInBoundsAccessChain %_ptr_Function_v3float %1229 %1270
        %1314 = OpLoad %v3float %1313 Aligned 16
-       %1942 = OpVectorTimesScalar %v3float %1314 %1444
-       %1978 = OpFAdd %v3float %1942 %1942
-       %1997 = OpExtInst %v3float %1 FMax %1978 %1859
-       %2018 = OpExtInst %v3float %1 FMin %1997 %1858
+       %1943 = OpVectorTimesScalar %v3float %1314 %1444
+       %1985 = OpFAdd %v3float %1938 %1943
+       %2004 = OpExtInst %v3float %1 FMax %1985 %1859
+       %2025 = OpExtInst %v3float %1 FMin %2004 %1858
                OpStore %1227 %true
-               OpStore %1228 %2018
-               OpStore %1230 %2018
+               OpStore %1228 %2025
+               OpStore %1230 %2025
         %653 = OpAccessChain %_ptr_RayPayloadNV_v3float %9 %uint_0
         %654 = OpLoad %v3float %653 Aligned 16
        %1900 = OpVectorTimesScalar %v3float %654 %float_9_99999997en07
-        %662 = OpFAdd %v3float %2018 %1900
+        %662 = OpFAdd %v3float %2025 %1900
                OpBranch %645
        %1338 = OpLabel
                OpUnreachable
@@ -803,7 +819,7 @@
                OpUnreachable
         %645 = OpLabel
         %665 = OpPhi %v3float %662 %1312 %664 %647
-       %1905 = OpExtInst %v3float %1 Pow %665 %1930
+       %1905 = OpExtInst %v3float %1 Pow %665 %1931
        %1906 = OpCompositeExtract %float %1905 0
        %1907 = OpCompositeExtract %float %1905 1
        %1908 = OpCompositeExtract %float %1905 2
@@ -827,14 +843,16 @@
         %676 = OpLabel
         %677 = OpLoad %v3float %14 Aligned 16
         %678 = OpLoad %v3float %5 Aligned 16
+        %679 = OpLoad %float %15 Aligned 4
         %680 = OpAccessChain %_ptr_IncomingRayPayloadNV_v3float %6 %uint_2
                OpStore %680 %678
-       %1910 = OpFAdd %v3float %677 %677
-       %1911 = OpCompositeExtract %float %1910 0
-       %1912 = OpCompositeExtract %float %1910 1
-       %1913 = OpCompositeExtract %float %1910 2
-        %694 = OpFAdd %float %1912 %float_5
-        %696 = OpCompositeConstruct %v3float %1911 %694 %1913
+       %1910 = OpVectorTimesScalar %v3float %678 %679
+       %1948 = OpFAdd %v3float %677 %1910
+       %1949 = OpCompositeExtract %float %1948 0
+       %1950 = OpCompositeExtract %float %1948 1
+       %1951 = OpCompositeExtract %float %1948 2
+        %694 = OpFAdd %float %1950 %float_5
+        %696 = OpCompositeConstruct %v3float %1949 %694 %1951
         %697 = OpAccessChain %_ptr_IncomingRayPayloadNV_v3float %6 %uint_1
                OpStore %697 %696
                OpReturn
@@ -862,6 +880,9 @@
         %714 = OpIMul %uint %702 %uint_3
         %715 = OpAccessChain %_ptr_PhysicalStorageBuffer_uint %713 %714
         %716 = OpLoad %uint %715 Aligned 4
+        %717 = OpIAdd %uint %714 %uint_1
+        %718 = OpAccessChain %_ptr_PhysicalStorageBuffer_uint %713 %717
+        %719 = OpLoad %uint %718 Aligned 4
         %720 = OpIAdd %uint %714 %uint_2
         %721 = OpAccessChain %_ptr_PhysicalStorageBuffer_uint %713 %720
         %722 = OpLoad %uint %721 Aligned 4
@@ -870,25 +891,28 @@
         %725 = OpConvertUToPtr %_ptr_PhysicalStorageBuffer__runtimearr_v2float %724
         %726 = OpAccessChain %_ptr_PhysicalStorageBuffer_v2float %725 %716
         %727 = OpLoad %v2float %726 Aligned 8
+        %728 = OpAccessChain %_ptr_PhysicalStorageBuffer_v2float %725 %719
+        %729 = OpLoad %v2float %728 Aligned 8
         %730 = OpAccessChain %_ptr_PhysicalStorageBuffer_v2float %725 %722
         %731 = OpLoad %v2float %730 Aligned 8
         %732 = OpLoad %v2float %20 Aligned 8
        %1551 = OpCompositeExtract %float %732 0
-       %1983 = OpFSub %v2float %732 %732
-       %1985 = OpCompositeExtract %float %1983 1
+       %1552 = OpFSub %float %float_1 %1551
        %1553 = OpCompositeExtract %float %732 1
-       %1557 = OpCompositeConstruct %v3float %1985 %1551 %1553
+       %1554 = OpFSub %float %1552 %1553
+       %1557 = OpCompositeConstruct %v3float %1554 %1551 %1553
                OpStore %1549 %1557
-       %1915 = OpVectorTimesScalar %v2float %727 %1985
-       %2002 = OpFAdd %v2float %1915 %1915
-       %1965 = OpVectorTimesScalar %v2float %731 %1553
-       %2023 = OpFAdd %v2float %2002 %1965
-               OpStore %1558 %2023
+       %1915 = OpVectorTimesScalar %v2float %727 %1554
+       %1953 = OpVectorTimesScalar %v2float %729 %1551
+       %1990 = OpFAdd %v2float %1915 %1953
+       %1971 = OpVectorTimesScalar %v2float %731 %1553
+       %2009 = OpFAdd %v2float %1990 %1971
+               OpStore %1558 %2009
         %736 = OpAccessChain %_ptr_PhysicalStorageBuffer_uint %709 %701 %uint_1 %uint_0
         %737 = OpLoad %uint %736 Aligned 4
         %738 = OpAccessChain %_ptr_UniformConstant_149 %18 %737
         %739 = OpLoad %149 %738 Aligned 4
-        %740 = OpImageSampleExplicitLod %v4float %739 %2023 Lod %float_0
+        %740 = OpImageSampleExplicitLod %v4float %739 %2009 Lod %float_0
         %741 = OpCompositeExtract %float %740 3
         %742 = OpFOrdLessThan %bool %741 %float_0_5
                OpSelectionMerge %743 None
@@ -965,14 +989,14 @@
         %808 = OpLoad %float %807 Aligned 4
         %810 = OpLoad %v2float %20 Aligned 8
        %1582 = OpCompositeExtract %float %810 0
-       %1969 = OpFSub %v2float %810 %810
-       %1971 = OpCompositeExtract %float %1969 1
+       %1583 = OpFSub %float %float_1 %1582
        %1584 = OpCompositeExtract %float %810 1
-       %1588 = OpCompositeConstruct %v3float %1971 %1582 %1584
+       %1585 = OpFSub %float %1583 %1584
+       %1588 = OpCompositeConstruct %v3float %1585 %1582 %1584
                OpStore %1580 %1588
-       %1593 = OpFMul %float %782 %1971
-       %1595 = OpFMul %float %785 %1971
-       %1597 = OpFMul %float %788 %1971
+       %1593 = OpFMul %float %782 %1585
+       %1595 = OpFMul %float %785 %1585
+       %1597 = OpFMul %float %788 %1585
        %1600 = OpFMul %float %792 %1582
        %1602 = OpFMul %float %795 %1582
        %1604 = OpFMul %float %798 %1582
@@ -1002,33 +1026,40 @@
         %822 = OpAccessChain %_ptr_Function__struct_78 %747 %uint_0
                OpCopyMemory %822 %749 Aligned 16
                OpCopyMemory %748 %747 Aligned 16
+        %824 = OpAccessChain %_ptr_Function_v3float %748 %uint_0 %uint_0
+        %825 = OpLoad %v3float %824 Aligned 16
+       %1919 = OpVectorTimesScalar %v3float %825 %1615
+        %833 = OpAccessChain %_ptr_Function_v3float %748 %uint_0 %uint_1
+        %834 = OpLoad %v3float %833 Aligned 16
+       %1957 = OpVectorTimesScalar %v3float %834 %1616
+       %1994 = OpFAdd %v3float %1957 %1919
         %845 = OpAccessChain %_ptr_Function_v3float %748 %uint_0 %uint_2
         %846 = OpLoad %v3float %845 Aligned 16
-       %2027 = OpVectorTimesScalar %v3float %846 %1617
-       %2053 = OpFAdd %v3float %2027 %2027
-       %2062 = OpFMul %v3float %2053 %2053
-       %2063 = OpCompositeExtract %float %2062 0
-       %2064 = OpCompositeExtract %float %2062 1
-       %2065 = OpCompositeExtract %float %2062 2
-        %859 = OpFAdd %float %2063 %2064
-        %861 = OpFAdd %float %859 %2065
+       %1975 = OpVectorTimesScalar %v3float %846 %1617
+       %2013 = OpFAdd %v3float %1975 %1994
+       %2030 = OpFMul %v3float %2013 %2013
+       %2031 = OpCompositeExtract %float %2030 0
+       %2032 = OpCompositeExtract %float %2030 1
+       %2033 = OpCompositeExtract %float %2030 2
+        %859 = OpFAdd %float %2031 %2032
+        %861 = OpFAdd %float %859 %2033
         %862 = OpExtInst %float %1 Sqrt %861
         %863 = OpFDiv %float %float_1 %862
-       %2071 = OpVectorTimesScalar %v3float %2053 %863
-       %1919 = OpFMul %v3float %755 %755
-       %1920 = OpCompositeExtract %float %1919 0
-       %1921 = OpCompositeExtract %float %1919 1
-       %1922 = OpCompositeExtract %float %1919 2
-       %1627 = OpFAdd %float %1920 %1921
-       %1631 = OpFAdd %float %1627 %1922
+       %2042 = OpVectorTimesScalar %v3float %2013 %863
+       %2051 = OpFMul %v3float %2042 %755
+       %2052 = OpCompositeExtract %float %2051 0
+       %2053 = OpCompositeExtract %float %2051 1
+       %2054 = OpCompositeExtract %float %2051 2
+       %1627 = OpFAdd %float %2052 %2053
+       %1631 = OpFAdd %float %1627 %2054
        %1632 = OpFMul %float %float_2 %1631
-       %2081 = OpVectorTimesScalar %v3float %2071 %1632
-       %1640 = OpFSub %v3float %755 %2081
+       %2069 = OpVectorTimesScalar %v3float %2042 %1632
+       %1640 = OpFSub %v3float %755 %2069
                OpStore %1619 %1640
         %869 = OpAccessChain %_ptr_IncomingRayPayloadNV_v3float %6 %uint_2
                OpStore %869 %1640
-       %1951 = OpVectorTimesScalar %v3float %755 %756
-        %877 = OpFAdd %v3float %754 %1951
+       %2060 = OpVectorTimesScalar %v3float %755 %756
+        %877 = OpFAdd %v3float %754 %2060
         %878 = OpAccessChain %_ptr_IncomingRayPayloadNV_v3float %6 %uint_1
                OpStore %878 %877
                OpReturn
@@ -1156,43 +1187,52 @@
                OpCopyMemory %996 %883 Aligned 16
         %997 = OpLoad %v2float %20 Aligned 8
        %1643 = OpCompositeExtract %float %997 0
-       %1924 = OpFSub %v2float %997 %997
-       %1926 = OpCompositeExtract %float %1924 1
+       %1644 = OpFSub %float %float_1 %1643
        %1645 = OpCompositeExtract %float %997 1
-       %1649 = OpCompositeConstruct %v3float %1926 %1643 %1645
+       %1646 = OpFSub %float %1644 %1645
+       %1649 = OpCompositeConstruct %v3float %1646 %1643 %1645
                OpStore %1641 %1649
        %1000 = OpAccessChain %_ptr_Function_v3float %880 %uint_0 %uint_0
        %1001 = OpLoad %v3float %1000 Aligned 16
+       %1002 = OpAccessChain %_ptr_Function_v3float %880 %uint_0 %uint_1
+       %1003 = OpLoad %v3float %1002 Aligned 16
        %1004 = OpAccessChain %_ptr_Function_v3float %880 %uint_0 %uint_2
        %1005 = OpLoad %v3float %1004 Aligned 16
-       %1956 = OpVectorTimesScalar %v3float %1001 %1926
-       %2076 = OpFAdd %v3float %1956 %1956
-       %1992 = OpVectorTimesScalar %v3float %1005 %1645
-       %2086 = OpFAdd %v3float %2076 %1992
-               OpStore %1650 %2086
+       %1924 = OpVectorTimesScalar %v3float %1001 %1646
+       %1962 = OpVectorTimesScalar %v3float %1003 %1643
+       %2074 = OpFAdd %v3float %1924 %1962
+       %1980 = OpVectorTimesScalar %v3float %1005 %1645
+       %2079 = OpFAdd %v3float %2074 %1980
+               OpStore %1650 %2079
        %1008 = OpAccessChain %_ptr_Function_v3float %880 %uint_1 %uint_0
        %1009 = OpLoad %v3float %1008 Aligned 16
+       %1010 = OpAccessChain %_ptr_Function_v3float %880 %uint_1 %uint_1
+       %1011 = OpLoad %v3float %1010 Aligned 16
        %1012 = OpAccessChain %_ptr_Function_v3float %880 %uint_1 %uint_2
        %1013 = OpLoad %v3float %1012 Aligned 16
-       %2011 = OpVectorTimesScalar %v3float %1009 %1926
-       %2091 = OpFAdd %v3float %2011 %2011
-       %2039 = OpVectorTimesScalar %v3float %1013 %1645
-       %2096 = OpFAdd %v3float %2091 %2039
-               OpStore %1680 %2096
+       %1999 = OpVectorTimesScalar %v3float %1009 %1646
+       %2018 = OpVectorTimesScalar %v3float %1011 %1643
+       %2084 = OpFAdd %v3float %1999 %2018
+       %2035 = OpVectorTimesScalar %v3float %1013 %1645
+       %2089 = OpFAdd %v3float %2084 %2035
+               OpStore %1680 %2089
        %1016 = OpAccessChain %_ptr_Function_v2float %880 %uint_2 %uint_0
        %1017 = OpLoad %v2float %1016 Aligned 8
+       %1018 = OpAccessChain %_ptr_Function_v2float %880 %uint_2 %uint_1
+       %1019 = OpLoad %v2float %1018 Aligned 8
        %1020 = OpAccessChain %_ptr_Function_v2float %880 %uint_2 %uint_2
        %1021 = OpLoad %v2float %1020 Aligned 8
-       %2049 = OpVectorTimesScalar %v2float %1017 %1926
-       %2101 = OpFAdd %v2float %2049 %2049
-       %2067 = OpVectorTimesScalar %v2float %1021 %1645
-       %2105 = OpFAdd %v2float %2101 %2067
-               OpStore %1710 %2105
+       %2047 = OpVectorTimesScalar %v2float %1017 %1646
+       %2056 = OpVectorTimesScalar %v2float %1019 %1643
+       %2094 = OpFAdd %v2float %2047 %2056
+       %2065 = OpVectorTimesScalar %v2float %1021 %1645
+       %2098 = OpFAdd %v2float %2094 %2065
+               OpStore %1710 %2098
        %1030 = OpAccessChain %_ptr_PhysicalStorageBuffer_uint %894 %886 %uint_1 %uint_0
        %1031 = OpLoad %uint %1030 Aligned 4
        %1032 = OpAccessChain %_ptr_UniformConstant_149 %18 %1031
        %1033 = OpLoad %149 %1032 Aligned 4
-       %1034 = OpImageSampleExplicitLod %v4float %1033 %2105 Lod %float_0
+       %1034 = OpImageSampleExplicitLod %v4float %1033 %2098 Lod %float_0
        %1035 = OpCompositeExtract %float %1034 0
        %1036 = OpCompositeExtract %float %1034 1
        %1037 = OpCompositeExtract %float %1034 2

@@ -627,6 +627,8 @@
         %918 = OpFSub %float %float_3 %917
         %919 = OpFMul %float %916 %918
                OpStore %910 %919
+        %754 = OpFSub %float %float_1 %919
+        %755 = OpFMul %float %881 %754
                OpStore %958 %false
                OpSelectionMerge %976 None
                OpBranchConditional %897 %974 %975
@@ -646,6 +648,7 @@
                OpStore %959 %1191
                OpStore %960 %1191
                OpStore %948 %881
+        %759 = OpFSub %float %float_1 %881
                OpStore %996 %false
                OpSelectionMerge %1014 None
                OpBranchConditional %935 %1012 %1013
@@ -676,6 +679,9 @@
         %828 = OpLabel
                OpUnreachable
         %764 = OpLabel
+        %765 = OpInBoundsAccessChain %_ptr_Function_v3float %704 %739
+        %766 = OpLoad %v3float %765
+       %1205 = OpVectorTimesScalar %v3float %766 %755
         %773 = OpULessThan %bool %742 %uint_10
                OpSelectionMerge %821 None
                OpBranchConditional %773 %774 %814
@@ -687,6 +693,10 @@
         %820 = OpLabel
                OpUnreachable
         %774 = OpLabel
+        %775 = OpInBoundsAccessChain %_ptr_Function_v3float %704 %742
+        %776 = OpLoad %v3float %775
+       %1210 = OpVectorTimesScalar %v3float %776 %759
+       %1234 = OpFAdd %v3float %1205 %1210
         %786 = OpULessThan %bool %745 %uint_10
                OpSelectionMerge %813 None
                OpBranchConditional %786 %787 %806
@@ -701,7 +711,7 @@
         %788 = OpInBoundsAccessChain %_ptr_Function_v3float %704 %745
         %789 = OpLoad %v3float %788
        %1239 = OpVectorTimesScalar %v3float %789 %919
-       %1252 = OpFAdd %v3float %1239 %1239
+       %1252 = OpFAdd %v3float %1234 %1239
        %1257 = OpExtInst %v3float %1 FMax %1252 %1173
        %1264 = OpExtInst %v3float %1 FMin %1257 %1269
                OpStore %702 %true

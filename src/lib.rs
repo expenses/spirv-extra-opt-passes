@@ -174,6 +174,7 @@ struct VectorInfo {
     id: Word,
 }
 
+#[derive(Debug)]
 struct CompositeExtractInfo {
     vector_id: Word,
     dimension_index: u32,
@@ -231,13 +232,13 @@ pub fn vectorisation_pass(module: &mut Module) -> bool {
     let mut changed = false;
 
     let mut ids_to_replace: HashMap<u32, u32> = HashMap::new();
+    let mut composite_extract_info = HashMap::new();
 
     for function in &mut module.functions {
         for block in &mut function.blocks {
             let mut vector_info = HashMap::new();
             let mut follow_up_instructions: HashMap<u32, Option<FollowUpInstruction>> =
                 HashMap::new();
-            let mut composite_extract_info = HashMap::new();
 
             for (insertion_index, instruction) in block.instructions.iter().enumerate() {
                 for operand in &instruction.operands {
@@ -534,6 +535,7 @@ fn vectorise(
 }
 
 fn vector_operand(
+    vector_id: Word,
     operand_index: usize,
     follow_up_instructions: &[&Instruction],
     composite_extract_info: &HashMap<Word, CompositeExtractInfo>,
@@ -546,12 +548,56 @@ fn vector_operand(
 
         match composite_extract_info.get(&id) {
             Some(&CompositeExtractInfo {
-                vector_id,
+                vector_id: other_vector_id,
                 dimension_index,
-            }) if dimension_index == i as u32 => Some(vector_id),
+            }) if dimension_index == i as u32 && other_vector_id != vector_id => {
+                Some(other_vector_id)
+            }
             _ => None,
         }
     }))
+}
+
+fn takes_vector_twice(
+    vector_id: Word,
+    follow_up_instructions: &[&Instruction],
+    composite_extract_info: &HashMap<Word, CompositeExtractInfo>,
+) -> bool {
+    follow_up_instructions.iter().enumerate().all(|(i, inst)| {
+        let id_1 = match inst.operands[0] {
+            Operand::IdRef(id) => id,
+            _ => return false,
+        };
+
+        let id_2 = match inst.operands[1] {
+            Operand::IdRef(id) => id,
+            _ => return false,
+        };
+
+        let i = i as u32;
+
+        match (
+            composite_extract_info.get(&id_1),
+            composite_extract_info.get(&id_2),
+        ) {
+            (
+                Some(&CompositeExtractInfo {
+                    vector_id: vector_id_1,
+                    dimension_index: dimension_index_1,
+                }),
+                Some(&CompositeExtractInfo {
+                    vector_id: vector_id_2,
+                    dimension_index: dimension_index_2,
+                }),
+            ) => {
+                dimension_index_1 == i
+                    && dimension_index_2 == i
+                    && vector_id_1 == vector_id
+                    && vector_id_2 == vector_id
+            }
+            _ => false,
+        }
+    })
 }
 
 fn glsl_operands<'a>(
@@ -618,9 +664,22 @@ fn get_operands(
     let shared_second_operand =
         all_items_equal(follow_up_instructions.iter().map(|inst| &inst.operands[1]));
 
-    let vector_first_operand = vector_operand(0, &follow_up_instructions, composite_extract_info);
+    let vector_first_operand = vector_operand(
+        vector_id,
+        0,
+        &follow_up_instructions,
+        composite_extract_info,
+    );
 
-    let vector_second_operand = vector_operand(1, &follow_up_instructions, composite_extract_info);
+    let vector_second_operand = vector_operand(
+        vector_id,
+        1,
+        &follow_up_instructions,
+        composite_extract_info,
+    );
+
+    let takes_vector_twice =
+        takes_vector_twice(vector_id, &follow_up_instructions, &composite_extract_info);
 
     let (other_operand, vector_is_first_operand, other_operand_is_vector) = shared_first_operand
         .map(|operand| {
@@ -630,7 +689,14 @@ fn get_operands(
         })
         .or_else(|| shared_second_operand.map(|operand| (operand.clone(), true, false)))
         .or_else(|| vector_first_operand.map(|id| (Operand::IdRef(id), false, true)))
-        .or_else(|| vector_second_operand.map(|id| (Operand::IdRef(id), true, true)))?;
+        .or_else(|| vector_second_operand.map(|id| (Operand::IdRef(id), true, true)))
+        .or_else(|| {
+            if takes_vector_twice {
+                Some((Operand::IdRef(vector_id), true, true))
+            } else {
+                None
+            }
+        })?;
 
     if *opcode == Op::FMul && !other_operand_is_vector {
         *opcode = Op::VectorTimesScalar;
