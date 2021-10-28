@@ -1,5 +1,5 @@
 [package]
-name = "spirv-extra-opt-passes-lib"
+name = "spirv-extra-opt-passes"
 version = "0.1.0"
 edition = "2021"
 

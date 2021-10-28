@@ -26,7 +26,7 @@ fn main() {
 
     let mut module = rspirv::dr::load_bytes(&bytes).unwrap();
 
-    while spirv_extra_opt_passes_lib::all_passes(&mut module) {}
+    while spirv_extra_opt_passes::all_passes(&mut module) {}
 
     let bytes = assemble_module_into_bytes(&module);
 
