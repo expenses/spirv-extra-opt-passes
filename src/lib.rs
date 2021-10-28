@@ -1,7 +1,7 @@
+use num_traits::cast::FromPrimitive;
 use rspirv::dr::{Instruction, Module, Operand};
 use rspirv::spirv::{Op, Word};
 use std::collections::{HashMap, HashSet};
-use num_traits::cast::FromPrimitive;
 
 mod legalisation;
 
@@ -13,19 +13,22 @@ pub fn unused_assignment_pruning_pass(module: &mut Module) -> bool {
 
     let glsl_ext_inst_id = get_glsl_ext_inst_id(&module);
 
-    fn is_unknown_extension_instruction(instruction: &Instruction, glsl_ext_inst_id: Option<Word>) -> bool {
+    fn is_unknown_extension_instruction(
+        instruction: &Instruction,
+        glsl_ext_inst_id: Option<Word>,
+    ) -> bool {
         if instruction.class.opcode != Op::ExtInst {
-            return false
+            return false;
         }
 
         let glsl_ext_inst_id = match glsl_ext_inst_id {
             Some(id) => id,
-            _ => return true
+            _ => return true,
         };
 
         match instruction.operands[0] {
             Operand::IdRef(id) => id != glsl_ext_inst_id,
-            _ => true
+            _ => true,
         }
     }
 
@@ -55,23 +58,43 @@ pub fn unused_assignment_pruning_pass(module: &mut Module) -> bool {
     }
 
     for instruction in &module.types_global_values {
-        handle_instruction(&mut referenced_ids, &mut result_ids, instruction, glsl_ext_inst_id);
+        handle_instruction(
+            &mut referenced_ids,
+            &mut result_ids,
+            instruction,
+            glsl_ext_inst_id,
+        );
     }
 
     for function in &module.functions {
         if let Some(instruction) = &function.def {
-            handle_instruction(&mut referenced_ids, &mut result_ids, instruction, glsl_ext_inst_id);
+            handle_instruction(
+                &mut referenced_ids,
+                &mut result_ids,
+                instruction,
+                glsl_ext_inst_id,
+            );
         }
 
         for block in &function.blocks {
             for instruction in &block.instructions {
-                handle_instruction(&mut referenced_ids, &mut result_ids, instruction, glsl_ext_inst_id);
+                handle_instruction(
+                    &mut referenced_ids,
+                    &mut result_ids,
+                    instruction,
+                    glsl_ext_inst_id,
+                );
             }
         }
     }
 
     for instruction in &module.entry_points {
-        handle_instruction(&mut referenced_ids, &mut result_ids, instruction, glsl_ext_inst_id);
+        handle_instruction(
+            &mut referenced_ids,
+            &mut result_ids,
+            instruction,
+            glsl_ext_inst_id,
+        );
     }
 
     let unused = result_ids
@@ -432,7 +455,14 @@ fn vectorise(
 
     // Only allow certain types for now
     match opcode {
-        Op::FMul | Op::FAdd | Op::FSub | Op::IEqual | Op::IAdd | Op::FOrdEqual | Op::Select | Op::ExtInst => {}
+        Op::FMul
+        | Op::FAdd
+        | Op::FSub
+        | Op::IEqual
+        | Op::IAdd
+        | Op::FOrdEqual
+        | Op::Select
+        | Op::ExtInst => {}
         _ => {
             println!("!!Unhandled opcode: {:?}!!", opcode);
             return None;
@@ -524,6 +554,24 @@ fn vector_operand(
     }))
 }
 
+fn glsl_operands<'a>(
+    follow_up_instructions: &[&'a Instruction],
+    glsl_ext_inst_id: Word,
+    other_index: usize,
+) -> Option<(&'a Operand, &'a Operand)> {
+    all_items_equal_filter(follow_up_instructions.iter().map(|inst| {
+        if inst.operands.len() != 4 {
+            return None;
+        }
+
+        if inst.operands[0] != Operand::IdRef(glsl_ext_inst_id) {
+            return None;
+        }
+
+        Some((&inst.operands[1], &inst.operands[other_index]))
+    }))
+}
+
 fn get_operands(
     vector_id: Word,
     follow_up_instructions: &[&Instruction],
@@ -534,16 +582,8 @@ fn get_operands(
     if *opcode == Op::ExtInst {
         let glsl_ext_inst_id = glsl_ext_inst_id?;
 
-
-        let (gl_op, other_operand) = all_items_equal_filter(follow_up_instructions.iter()
-            .map(|inst| {
-                if inst.operands[0] != Operand::IdRef(glsl_ext_inst_id) {
-                    return None;
-                }
-
-                // todo: handle case where the scalar op is 2.
-                Some((&inst.operands[1], &inst.operands[3]))
-            }))?;
+        let (gl_op, other_operand) = glsl_operands(follow_up_instructions, glsl_ext_inst_id, 2)
+            .or(glsl_operands(follow_up_instructions, glsl_ext_inst_id, 3))?;
 
         // todo: only some gl ops can be vectorised.
         let gl_op = match gl_op {
@@ -551,7 +591,12 @@ fn get_operands(
             _ => return None,
         };
 
-        return Some(vec![Operand::IdRef(glsl_ext_inst_id), Operand::LiteralExtInstInteger(gl_op as u32), Operand::IdRef(vector_id), other_operand.clone()])
+        return Some(vec![
+            Operand::IdRef(glsl_ext_inst_id),
+            Operand::LiteralExtInstInteger(gl_op as u32),
+            Operand::IdRef(vector_id),
+            other_operand.clone(),
+        ]);
     }
 
     if *opcode == Op::Select {
