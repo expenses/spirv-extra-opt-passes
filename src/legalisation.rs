@@ -4,7 +4,7 @@ use std::collections::{hash_map::Entry, HashMap};
 
 pub fn dedup_vector_types(module: &mut Module) {
     let mut ty_and_dimensions_to_vector_id = HashMap::new();
-    let mut replace = HashMap::new();
+    let mut replacements = HashMap::new();
 
     for instruction in &mut module.types_global_values {
         if instruction.class.opcode != Op::TypeVector {
@@ -28,7 +28,7 @@ pub fn dedup_vector_types(module: &mut Module) {
 
         match ty_and_dimensions_to_vector_id.entry((scalar, dimensions)) {
             Entry::Occupied(matching_vector) => {
-                replace.insert(result_id, *matching_vector.get());
+                replacements.insert(result_id, *matching_vector.get());
             }
             Entry::Vacant(vacancy) => {
                 vacancy.insert(result_id);
@@ -36,33 +36,7 @@ pub fn dedup_vector_types(module: &mut Module) {
         }
     }
 
-    module
-        .types_global_values
-        .retain(|instruction| match instruction.result_id {
-            Some(result_id) => replace.get(&result_id).is_none(),
-            _ => true,
-        });
-
-    // For things like OpConstantComposite
-    for instruction in &mut module.types_global_values {
-        if let Some(result_type) = instruction.result_type.as_mut() {
-            if let Some(replace) = replace.get(result_type) {
-                *result_type = *replace;
-            }
-        }
-    }
-
-    for function in &mut module.functions {
-        for block in &mut function.blocks {
-            for instruction in &mut block.instructions {
-                if let Some(result_type) = instruction.result_type.as_mut() {
-                    if let Some(replace) = replace.get(result_type) {
-                        *result_type = *replace;
-                    }
-                }
-            }
-        }
-    }
+    crate::replace_globals(module, &replacements)
 }
 
 // After the vectorisation pass, some operands need to be changed from constant scalars

@@ -1,7 +1,7 @@
 use num_traits::cast::FromPrimitive;
 use rspirv::dr::{Instruction, Module, Operand};
 use rspirv::spirv::{Op, Word};
-use std::collections::{HashMap, HashSet};
+use std::collections::{hash_map::Entry, HashMap, HashSet};
 
 mod legalisation;
 
@@ -702,5 +702,94 @@ pub fn all_passes(module: &mut Module) -> bool {
         modified = true;
     }
 
+    dedup_constant_composites(module);
+
     modified
+}
+
+pub fn dedup_constant_composites(module: &mut Module) -> bool {
+    let mut ty_and_operand_to_composite_id = HashMap::new();
+    let mut replacements = HashMap::new();
+
+    for instruction in &mut module.types_global_values {
+        if instruction.class.opcode != Op::ConstantComposite {
+            continue;
+        }
+
+        let result_id = match instruction.result_id {
+            Some(result_id) => result_id,
+            _ => continue,
+        };
+
+        let result_type = match instruction.result_type {
+            Some(result_type) => result_type,
+            _ => continue,
+        };
+
+        let operands = match instruction
+            .operands
+            .iter()
+            .map(|operand| match operand {
+                Operand::IdRef(id) => Some(id),
+                _ => None,
+            })
+            .collect::<Option<Vec<_>>>()
+        {
+            Some(operands) => operands,
+            _ => continue,
+        };
+
+        match ty_and_operand_to_composite_id.entry((result_type, operands)) {
+            Entry::Occupied(matching_composite) => {
+                replacements.insert(result_id, *matching_composite.get());
+            }
+            Entry::Vacant(vacancy) => {
+                vacancy.insert(result_id);
+            }
+        }
+    }
+
+    replace_globals(module, &replacements);
+
+    !replacements.is_empty()
+}
+
+fn replace_globals(module: &mut Module, replacements: &HashMap<Word, Word>) {
+    module
+        .types_global_values
+        .retain(|instruction| match instruction.result_id {
+            Some(result_id) => replacements.get(&result_id).is_none(),
+            _ => true,
+        });
+
+    for instruction in &mut module.types_global_values {
+        if let Some(result_type) = instruction.result_type.as_mut() {
+            if let Some(replacement) = replacements.get(result_type) {
+                *result_type = *replacement;
+            }
+        }
+    }
+
+    for function in &mut module.functions {
+        for block in &mut function.blocks {
+            for instruction in &mut block.instructions {
+                if let Some(result_type) = instruction.result_type.as_mut() {
+                    if let Some(replacement) = replacements.get(result_type) {
+                        *result_type = *replacement;
+                    }
+                }
+
+                for operand in &mut instruction.operands {
+                    let id = match operand {
+                        Operand::IdRef(id) => id,
+                        _ => continue,
+                    };
+
+                    if let Some(replacement) = replacements.get(id) {
+                        *operand = Operand::IdRef(*replacement);
+                    }
+                }
+            }
+        }
+    }
 }

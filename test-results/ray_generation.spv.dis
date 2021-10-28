@@ -168,13 +168,9 @@
 %float_2_14748352e_09 = OpConstant %float 2.14748352e+09
      %v3bool = OpTypeVector %bool 3
        %1220 = OpConstantComposite %v3int %int_0 %int_0 %int_0
-       %1222 = OpConstantComposite %v3float %float_0 %float_0 %float_0
     %v3uchar = OpTypeVector %uchar 3
        %1244 = OpConstantComposite %v3uchar %uchar_1 %uchar_1 %uchar_1
        %1246 = OpConstantComposite %v3uchar %uchar_0 %uchar_0 %uchar_0
-       %1248 = OpConstantComposite %v3uchar %uchar_1 %uchar_1 %uchar_1
-       %1250 = OpConstantComposite %v3uchar %uchar_0 %uchar_0 %uchar_0
-       %1262 = OpConstantComposite %v3float %float_0 %float_0 %float_0
        %1269 = OpConstantComposite %v3float %float_1 %float_1 %float_1
           %3 = OpFunction %void None %94
         %163 = OpLabel
@@ -431,8 +427,8 @@
                OpTraceRayKHR %414 %uint_0 %int_255 %int_0 %int_0 %int_0 %380 %float_0_00999999978 %378 %float_10000 %4
         %415 = OpAccessChain %_ptr_RayPayloadNV_v3float %4 %uint_2
         %416 = OpLoad %v3float %415
-       %1200 = OpFOrdEqual %v3bool %416 %1222
-       %1229 = OpSelect %v3uchar %1200 %1248 %1250
+       %1200 = OpFOrdEqual %v3bool %416 %1173
+       %1229 = OpSelect %v3uchar %1200 %1244 %1246
        %1230 = OpCompositeExtract %uchar %1229 0
        %1231 = OpCompositeExtract %uchar %1229 1
        %1232 = OpCompositeExtract %uchar %1229 2
@@ -706,7 +702,7 @@
         %789 = OpLoad %v3float %788
        %1239 = OpVectorTimesScalar %v3float %789 %919
        %1252 = OpFAdd %v3float %1239 %1239
-       %1257 = OpExtInst %v3float %1 FMax %1252 %1262
+       %1257 = OpExtInst %v3float %1 FMax %1252 %1173
        %1264 = OpExtInst %v3float %1 FMin %1257 %1269
                OpStore %702 %true
                OpStore %703 %1264
