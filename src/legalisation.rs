@@ -1,6 +1,6 @@
 use rspirv::dr::{Instruction, Module, Operand};
 use rspirv::spirv::Op;
-use std::collections::{hash_map::Entry, HashMap, HashSet};
+use std::collections::{hash_map::Entry, HashMap};
 
 pub fn dedup_vector_types(module: &mut Module) {
     let mut ty_and_dimensions_to_vector_id = HashMap::new();

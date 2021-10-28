@@ -1,0 +1,325 @@
+; SPIR-V
+; Version: 1.4
+; Generator: Google rspirv; 0
+; Bound: 328
+; Schema: 0
+               OpCapability Int64
+               OpCapability Int8
+               OpCapability RayTracingKHR
+               OpCapability ShaderNonUniform
+               OpCapability RuntimeDescriptorArray
+               OpCapability SampledImageArrayNonUniformIndexing
+               OpCapability PhysicalStorageBufferAddresses
+               OpExtension "SPV_EXT_descriptor_indexing"
+               OpExtension "SPV_KHR_physical_storage_buffer"
+               OpExtension "SPV_KHR_ray_tracing"
+          %1 = OpExtInstImport "GLSL.std.450"
+               OpMemoryModel PhysicalStorageBuffer64 GLSL450
+               OpEntryPoint AnyHitNV %main "main" %attribs %gl_PrimitiveID %push_constant_buffer_addresses %gl_InstanceCustomIndexEXT %gl_GeometryIndexEXT %textures %primary_payload %shadow_payload
+               OpSource GLSL 460
+               OpSourceExtension "GL_EXT_buffer_reference"
+               OpSourceExtension "GL_EXT_nonuniform_qualifier"
+               OpSourceExtension "GL_EXT_ray_tracing"
+               OpSourceExtension "GL_EXT_scalar_block_layout"
+               OpSourceExtension "GL_EXT_shader_explicit_arithmetic_types_int64"
+               OpSourceExtension "GL_EXT_shader_explicit_arithmetic_types_int8"
+               OpSourceExtension "GL_GOOGLE_cpp_style_line_directive"
+               OpSourceExtension "GL_GOOGLE_include_directive"
+               OpName %main "main"
+               OpName %GeometryInfo "GeometryInfo"
+               OpMemberName %GeometryInfo 0 "index_buffer_address"
+               OpMemberName %GeometryInfo 1 "diffuse_texture_index"
+               OpMemberName %GeometryInfo 2 "metallic_roughness_texture_index"
+               OpMemberName %GeometryInfo 3 "normal_map_texture_index"
+               OpName %attribs "attribs"
+               OpName %IndexBuffer "IndexBuffer"
+               OpMemberName %IndexBuffer 0 "buf"
+               OpName %gl_PrimitiveID "gl_PrimitiveID"
+               OpName %Vec2Buffer "Vec2Buffer"
+               OpMemberName %Vec2Buffer 0 "buf"
+               OpName %ModelInfo "ModelInfo"
+               OpMemberName %ModelInfo 0 "position_buffer_address"
+               OpMemberName %ModelInfo 1 "normal_buffer_address"
+               OpMemberName %ModelInfo 2 "uv_buffer_address"
+               OpMemberName %ModelInfo 3 "geometry_info_address"
+               OpName %ModelInfos "ModelInfos"
+               OpMemberName %ModelInfos 0 "buf"
+               OpName %infos "infos"
+               OpName %PushConstantBufferAddresses "PushConstantBufferAddresses"
+               OpMemberName %PushConstantBufferAddresses 0 "model_info"
+               OpMemberName %PushConstantBufferAddresses 1 "uniforms"
+               OpMemberName %PushConstantBufferAddresses 2 "acceleration_structure"
+               OpName %push_constant_buffer_addresses "push_constant_buffer_addresses"
+               OpName %ModelInfo_0 "ModelInfo"
+               OpMemberName %ModelInfo_0 0 "position_buffer_address"
+               OpMemberName %ModelInfo_0 1 "normal_buffer_address"
+               OpMemberName %ModelInfo_0 2 "uv_buffer_address"
+               OpMemberName %ModelInfo_0 3 "geometry_info_address"
+               OpName %gl_InstanceCustomIndexEXT "gl_InstanceCustomIndexEXT"
+               OpName %GeometryInfo_0 "GeometryInfo"
+               OpMemberName %GeometryInfo_0 0 "index_buffer_address"
+               OpMemberName %GeometryInfo_0 1 "diffuse_texture_index"
+               OpMemberName %GeometryInfo_0 2 "metallic_roughness_texture_index"
+               OpMemberName %GeometryInfo_0 3 "normal_map_texture_index"
+               OpName %GeometryInfos "GeometryInfos"
+               OpMemberName %GeometryInfos 0 "buf"
+               OpName %geo_infos "geo_infos"
+               OpName %gl_GeometryIndexEXT "gl_GeometryIndexEXT"
+               OpName %indices "indices"
+               OpName %interpolated_uv "interpolated_uv"
+               OpName %param "param"
+               OpName %param_0 "param"
+               OpName %param_1 "param"
+               OpName %alpha "alpha"
+               OpName %textures "textures"
+               OpName %PrimaryRayPayload "PrimaryRayPayload"
+               OpMemberName %PrimaryRayPayload 0 "colour"
+               OpMemberName %PrimaryRayPayload 1 "new_ray_origin"
+               OpMemberName %PrimaryRayPayload 2 "new_ray_direction"
+               OpName %primary_payload "primary_payload"
+               OpName %ShadowRayPayload "ShadowRayPayload"
+               OpMemberName %ShadowRayPayload 0 "shadowed"
+               OpName %shadow_payload "shadow_payload"
+               OpDecorate %_runtimearr_v3uint ArrayStride 12
+               OpMemberDecorate %IndexBuffer 0 Offset 0
+               OpDecorate %IndexBuffer Block
+               OpDecorate %gl_PrimitiveID BuiltIn PrimitiveId
+               OpDecorate %_runtimearr_v2float ArrayStride 8
+               OpMemberDecorate %Vec2Buffer 0 Offset 0
+               OpDecorate %Vec2Buffer Block
+               OpMemberDecorate %ModelInfo 0 Offset 0
+               OpMemberDecorate %ModelInfo 1 Offset 8
+               OpMemberDecorate %ModelInfo 2 Offset 16
+               OpMemberDecorate %ModelInfo 3 Offset 24
+               OpDecorate %_runtimearr_ModelInfo ArrayStride 32
+               OpMemberDecorate %ModelInfos 0 Offset 0
+               OpDecorate %ModelInfos Block
+               OpDecorate %infos AliasedPointer
+               OpMemberDecorate %PushConstantBufferAddresses 0 Offset 0
+               OpMemberDecorate %PushConstantBufferAddresses 1 Offset 8
+               OpMemberDecorate %PushConstantBufferAddresses 2 Offset 16
+               OpDecorate %PushConstantBufferAddresses Block
+               OpDecorate %gl_InstanceCustomIndexEXT BuiltIn InstanceCustomIndexNV
+               OpMemberDecorate %GeometryInfo_0 0 Offset 0
+               OpMemberDecorate %GeometryInfo_0 1 Offset 8
+               OpMemberDecorate %GeometryInfo_0 2 Offset 12
+               OpMemberDecorate %GeometryInfo_0 3 Offset 16
+               OpDecorate %_runtimearr_GeometryInfo_0 ArrayStride 24
+               OpMemberDecorate %GeometryInfos 0 Offset 0
+               OpDecorate %GeometryInfos Block
+               OpDecorate %geo_infos AliasedPointer
+               OpDecorate %gl_GeometryIndexEXT BuiltIn RayGeometryIndexKHR
+               OpDecorate %textures DescriptorSet 0
+               OpDecorate %textures Binding 0
+               OpDecorate %193 NonUniform
+               OpDecorate %195 NonUniform
+               OpDecorate %196 NonUniform
+               OpDecorate %primary_payload Location 0
+               OpDecorate %shadow_payload Location 1
+               OpDecorate %218 AliasedPointer
+               OpDecorate %228 AliasedPointer
+       %void = OpTypeVoid
+          %3 = OpTypeFunction %void
+      %float = OpTypeFloat 32
+    %v3float = OpTypeVector %float 3
+      %ulong = OpTypeInt 64 0
+       %uint = OpTypeInt 32 0
+        %int = OpTypeInt 32 1
+%GeometryInfo = OpTypeStruct %ulong %uint %uint %int
+     %v3uint = OpTypeVector %uint 3
+    %v2float = OpTypeVector %float 2
+%_ptr_Function_v3float = OpTypePointer Function %v3float
+%_ptr_Function_ulong = OpTypePointer Function %ulong
+%_ptr_Function_v3uint = OpTypePointer Function %v3uint
+    %float_1 = OpConstant %float 1
+%_ptr_HitAttributeNV_v2float = OpTypePointer HitAttributeNV %v2float
+    %attribs = OpVariable %_ptr_HitAttributeNV_v2float HitAttributeNV
+     %uint_0 = OpConstant %uint 0
+%_ptr_HitAttributeNV_float = OpTypePointer HitAttributeNV %float
+     %uint_1 = OpConstant %uint 1
+               OpTypeForwardPointer %_ptr_PhysicalStorageBuffer_IndexBuffer PhysicalStorageBuffer
+%_runtimearr_v3uint = OpTypeRuntimeArray %v3uint
+%IndexBuffer = OpTypeStruct %_runtimearr_v3uint
+%_ptr_PhysicalStorageBuffer_IndexBuffer = OpTypePointer PhysicalStorageBuffer %IndexBuffer
+%_ptr_Function__ptr_PhysicalStorageBuffer_IndexBuffer = OpTypePointer Function %_ptr_PhysicalStorageBuffer_IndexBuffer
+      %int_0 = OpConstant %int 0
+%_ptr_Input_int = OpTypePointer Input %int
+%gl_PrimitiveID = OpVariable %_ptr_Input_int Input
+%_ptr_PhysicalStorageBuffer_v3uint = OpTypePointer PhysicalStorageBuffer %v3uint
+%_ptr_Function_v2float = OpTypePointer Function %v2float
+%_ptr_Function_float = OpTypePointer Function %float
+     %uint_2 = OpConstant %uint 2
+               OpTypeForwardPointer %_ptr_PhysicalStorageBuffer_Vec2Buffer PhysicalStorageBuffer
+%_runtimearr_v2float = OpTypeRuntimeArray %v2float
+ %Vec2Buffer = OpTypeStruct %_runtimearr_v2float
+%_ptr_PhysicalStorageBuffer_Vec2Buffer = OpTypePointer PhysicalStorageBuffer %Vec2Buffer
+%_ptr_Function__ptr_PhysicalStorageBuffer_Vec2Buffer = OpTypePointer Function %_ptr_PhysicalStorageBuffer_Vec2Buffer
+%_ptr_Function_uint = OpTypePointer Function %uint
+%_ptr_PhysicalStorageBuffer_v2float = OpTypePointer PhysicalStorageBuffer %v2float
+               OpTypeForwardPointer %_ptr_PhysicalStorageBuffer_ModelInfos PhysicalStorageBuffer
+  %ModelInfo = OpTypeStruct %ulong %ulong %ulong %ulong
+%_runtimearr_ModelInfo = OpTypeRuntimeArray %ModelInfo
+ %ModelInfos = OpTypeStruct %_runtimearr_ModelInfo
+%_ptr_PhysicalStorageBuffer_ModelInfos = OpTypePointer PhysicalStorageBuffer %ModelInfos
+%_ptr_Function__ptr_PhysicalStorageBuffer_ModelInfos = OpTypePointer Function %_ptr_PhysicalStorageBuffer_ModelInfos
+%PushConstantBufferAddresses = OpTypeStruct %ulong %ulong %ulong
+%_ptr_PushConstant_PushConstantBufferAddresses = OpTypePointer PushConstant %PushConstantBufferAddresses
+%push_constant_buffer_addresses = OpVariable %_ptr_PushConstant_PushConstantBufferAddresses PushConstant
+%_ptr_PushConstant_ulong = OpTypePointer PushConstant %ulong
+%ModelInfo_0 = OpTypeStruct %ulong %ulong %ulong %ulong
+%gl_InstanceCustomIndexEXT = OpVariable %_ptr_Input_int Input
+%_ptr_PhysicalStorageBuffer_ModelInfo = OpTypePointer PhysicalStorageBuffer %ModelInfo
+               OpTypeForwardPointer %_ptr_PhysicalStorageBuffer_GeometryInfos PhysicalStorageBuffer
+%GeometryInfo_0 = OpTypeStruct %ulong %uint %uint %int
+%_runtimearr_GeometryInfo_0 = OpTypeRuntimeArray %GeometryInfo_0
+%GeometryInfos = OpTypeStruct %_runtimearr_GeometryInfo_0
+%_ptr_PhysicalStorageBuffer_GeometryInfos = OpTypePointer PhysicalStorageBuffer %GeometryInfos
+%_ptr_Function__ptr_PhysicalStorageBuffer_GeometryInfos = OpTypePointer Function %_ptr_PhysicalStorageBuffer_GeometryInfos
+%gl_GeometryIndexEXT = OpVariable %_ptr_Input_int Input
+%_ptr_PhysicalStorageBuffer_GeometryInfo_0 = OpTypePointer PhysicalStorageBuffer %GeometryInfo_0
+        %186 = OpTypeImage %float 2D 0 0 0 1 Unknown
+        %187 = OpTypeSampledImage %186
+%_runtimearr_187 = OpTypeRuntimeArray %187
+%_ptr_UniformConstant__runtimearr_187 = OpTypePointer UniformConstant %_runtimearr_187
+   %textures = OpVariable %_ptr_UniformConstant__runtimearr_187 UniformConstant
+%_ptr_UniformConstant_187 = OpTypePointer UniformConstant %187
+    %v4float = OpTypeVector %float 4
+    %float_0 = OpConstant %float 0
+  %float_0_5 = OpConstant %float 0.5
+       %bool = OpTypeBool
+%PrimaryRayPayload = OpTypeStruct %v3float %v3float %v3float
+%_ptr_IncomingRayPayloadNV_PrimaryRayPayload = OpTypePointer IncomingRayPayloadNV %PrimaryRayPayload
+%primary_payload = OpVariable %_ptr_IncomingRayPayloadNV_PrimaryRayPayload IncomingRayPayloadNV
+      %uchar = OpTypeInt 8 0
+%ShadowRayPayload = OpTypeStruct %uchar
+%_ptr_RayPayloadNV_ShadowRayPayload = OpTypePointer RayPayloadNV %ShadowRayPayload
+%shadow_payload = OpVariable %_ptr_RayPayloadNV_ShadowRayPayload RayPayloadNV
+%_ptr_Function_int = OpTypePointer Function %int
+       %main = OpFunction %void None %3
+          %5 = OpLabel
+        %327 = OpVariable %_ptr_Function_v2float Function
+        %326 = OpVariable %_ptr_Function_v2float Function
+        %325 = OpVariable %_ptr_Function_v2float Function
+        %321 = OpVariable %_ptr_Function_ulong Function
+        %311 = OpVariable %_ptr_Function_int Function
+        %309 = OpVariable %_ptr_Function_uint Function
+        %308 = OpVariable %_ptr_Function_uint Function
+        %307 = OpVariable %_ptr_Function_ulong Function
+        %304 = OpVariable %_ptr_Function_ulong Function
+        %303 = OpVariable %_ptr_Function_ulong Function
+        %294 = OpVariable %_ptr_Function_v2float Function
+        %293 = OpVariable %_ptr_Function_v2float Function
+        %292 = OpVariable %_ptr_Function_v2float Function
+        %287 = OpVariable %_ptr_Function_v2float Function
+        %286 = OpVariable %_ptr_Function_v2float Function
+        %285 = OpVariable %_ptr_Function_v2float Function
+        %266 = OpVariable %_ptr_Function_v2float Function
+        %253 = OpVariable %_ptr_Function_v3float Function
+        %228 = OpVariable %_ptr_Function__ptr_PhysicalStorageBuffer_Vec2Buffer Function
+        %218 = OpVariable %_ptr_Function__ptr_PhysicalStorageBuffer_IndexBuffer Function
+        %219 = OpVariable %_ptr_Function_v3uint Function
+      %infos = OpVariable %_ptr_Function__ptr_PhysicalStorageBuffer_ModelInfos Function
+  %geo_infos = OpVariable %_ptr_Function__ptr_PhysicalStorageBuffer_GeometryInfos Function
+    %indices = OpVariable %_ptr_Function_v3uint Function
+%interpolated_uv = OpVariable %_ptr_Function_v2float Function
+      %param = OpVariable %_ptr_Function_ulong Function
+    %param_0 = OpVariable %_ptr_Function_v3uint Function
+    %param_1 = OpVariable %_ptr_Function_v3float Function
+      %alpha = OpVariable %_ptr_Function_float Function
+        %139 = OpAccessChain %_ptr_PushConstant_ulong %push_constant_buffer_addresses %int_0
+        %140 = OpLoad %ulong %139
+        %141 = OpConvertUToPtr %_ptr_PhysicalStorageBuffer_ModelInfos %140
+               OpStore %infos %141
+        %147 = OpLoad %int %gl_InstanceCustomIndexEXT
+        %149 = OpAccessChain %_ptr_PhysicalStorageBuffer_ModelInfo %141 %int_0 %147
+        %150 = OpLoad %ModelInfo %149 Aligned 16
+        %151 = OpCopyLogical %ModelInfo_0 %150
+        %305 = OpCompositeExtract %ulong %151 2
+               OpStore %303 %305
+        %306 = OpCompositeExtract %ulong %151 3
+               OpStore %304 %306
+        %161 = OpConvertUToPtr %_ptr_PhysicalStorageBuffer_GeometryInfos %306
+               OpStore %geo_infos %161
+        %165 = OpLoad %int %gl_GeometryIndexEXT
+        %167 = OpAccessChain %_ptr_PhysicalStorageBuffer_GeometryInfo_0 %161 %int_0 %165
+        %168 = OpLoad %GeometryInfo_0 %167 Aligned 8
+        %169 = OpCopyLogical %GeometryInfo %168
+        %312 = OpCompositeExtract %ulong %169 0
+               OpStore %307 %312
+        %313 = OpCompositeExtract %uint %169 1
+               OpStore %308 %313
+        %314 = OpCompositeExtract %uint %169 2
+               OpStore %309 %314
+        %315 = OpCompositeExtract %int %169 3
+               OpStore %311 %315
+               OpStore %321 %312
+        %223 = OpConvertUToPtr %_ptr_PhysicalStorageBuffer_IndexBuffer %312
+               OpStore %218 %223
+        %225 = OpLoad %int %gl_PrimitiveID
+        %226 = OpAccessChain %_ptr_PhysicalStorageBuffer_v3uint %223 %int_0 %225
+        %227 = OpLoad %v3uint %226 Aligned 4
+               OpStore %219 %227
+               OpStore %indices %227
+               OpStore %param %305
+               OpStore %param_0 %227
+        %233 = OpConvertUToPtr %_ptr_PhysicalStorageBuffer_Vec2Buffer %305
+               OpStore %228 %233
+        %235 = OpAccessChain %_ptr_Function_uint %param_0 %uint_0
+        %236 = OpLoad %uint %235
+        %237 = OpAccessChain %_ptr_PhysicalStorageBuffer_v2float %233 %int_0 %236
+        %238 = OpLoad %v2float %237 Aligned 8
+               OpStore %285 %238
+        %241 = OpAccessChain %_ptr_Function_uint %param_0 %uint_1
+        %242 = OpLoad %uint %241
+        %243 = OpAccessChain %_ptr_PhysicalStorageBuffer_v2float %233 %int_0 %242
+        %244 = OpLoad %v2float %243 Aligned 8
+               OpStore %286 %244
+        %247 = OpAccessChain %_ptr_Function_uint %param_0 %uint_2
+        %248 = OpLoad %uint %247
+        %249 = OpAccessChain %_ptr_PhysicalStorageBuffer_v2float %233 %int_0 %248
+        %250 = OpLoad %v2float %249 Aligned 8
+               OpStore %287 %250
+               OpStore %292 %238
+               OpStore %293 %244
+               OpStore %294 %250
+        %255 = OpAccessChain %_ptr_HitAttributeNV_float %attribs %uint_0
+        %256 = OpLoad %float %255
+        %257 = OpFSub %float %float_1 %256
+        %258 = OpAccessChain %_ptr_HitAttributeNV_float %attribs %uint_1
+        %259 = OpLoad %float %258
+        %260 = OpFSub %float %257 %259
+        %262 = OpLoad %float %255
+        %264 = OpLoad %float %258
+        %265 = OpCompositeConstruct %v3float %260 %262 %264
+               OpStore %253 %265
+               OpStore %325 %238
+               OpStore %326 %244
+               OpStore %327 %250
+               OpStore %param_1 %265
+        %270 = OpAccessChain %_ptr_Function_float %param_1 %uint_0
+        %271 = OpLoad %float %270
+        %272 = OpVectorTimesScalar %v2float %238 %271
+        %275 = OpAccessChain %_ptr_Function_float %param_1 %uint_1
+        %276 = OpLoad %float %275
+        %277 = OpVectorTimesScalar %v2float %244 %276
+        %278 = OpFAdd %v2float %272 %277
+        %281 = OpAccessChain %_ptr_Function_float %param_1 %uint_2
+        %282 = OpLoad %float %281
+        %283 = OpVectorTimesScalar %v2float %250 %282
+        %284 = OpFAdd %v2float %278 %283
+               OpStore %266 %284
+               OpStore %interpolated_uv %284
+        %193 = OpCopyObject %uint %313
+        %195 = OpAccessChain %_ptr_UniformConstant_187 %textures %193
+        %196 = OpLoad %187 %195
+        %200 = OpImageSampleExplicitLod %v4float %196 %284 Lod %float_0
+        %202 = OpCompositeExtract %float %200 3
+               OpStore %alpha %202
+        %206 = OpFOrdLessThan %bool %202 %float_0_5
+               OpSelectionMerge %208 None
+               OpBranchConditional %206 %207 %208
+        %207 = OpLabel
+               OpIgnoreIntersectionKHR
+        %208 = OpLabel
+               OpReturn
+               OpFunctionEnd

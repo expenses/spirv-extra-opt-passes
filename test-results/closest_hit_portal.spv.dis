@@ -1,0 +1,56 @@
+; SPIR-V
+; Version: 1.4
+; Generator: Google rspirv; 0
+; Bound: 57
+; Schema: 0
+               OpCapability Int64
+               OpCapability Int8
+               OpCapability RayTracingKHR
+               OpCapability RuntimeDescriptorArray
+               OpCapability ShaderClockKHR
+               OpCapability Shader
+               OpExtension "SPV_EXT_descriptor_indexing"
+               OpExtension "SPV_KHR_non_semantic_info"
+               OpExtension "SPV_KHR_ray_tracing"
+               OpExtension "SPV_KHR_shader_clock"
+               OpMemoryModel Logical Simple
+               OpEntryPoint ClosestHitNV %1 "closest_hit_portal" %2 %3 %4 %5
+               OpMemberDecorate %_struct_11 0 Offset 0
+               OpMemberDecorate %_struct_11 1 Offset 16
+               OpMemberDecorate %_struct_11 2 Offset 32
+               OpDecorate %4 BuiltIn WorldRayDirectionNV
+               OpDecorate %3 BuiltIn WorldRayOriginNV
+               OpDecorate %5 BuiltIn RayTmaxNV
+       %void = OpTypeVoid
+       %uint = OpTypeInt 32 0
+      %float = OpTypeFloat 32
+    %v3float = OpTypeVector %float 3
+ %_struct_11 = OpTypeStruct %v3float %v3float %v3float
+%_ptr_IncomingRayPayloadNV__struct_11 = OpTypePointer IncomingRayPayloadNV %_struct_11
+%_ptr_Input_v3float = OpTypePointer Input %v3float
+%_ptr_IncomingRayPayloadNV_v3float = OpTypePointer IncomingRayPayloadNV %v3float
+%_ptr_Input_float = OpTypePointer Input %float
+         %20 = OpTypeFunction %void
+          %2 = OpVariable %_ptr_IncomingRayPayloadNV__struct_11 IncomingRayPayloadNV
+          %4 = OpVariable %_ptr_Input_v3float Input
+          %3 = OpVariable %_ptr_Input_v3float Input
+          %5 = OpVariable %_ptr_Input_float Input
+     %uint_1 = OpConstant %uint 1
+     %uint_2 = OpConstant %uint 2
+    %float_5 = OpConstant %float 5
+          %1 = OpFunction %void None %20
+         %25 = OpLabel
+         %26 = OpLoad %v3float %3
+         %27 = OpLoad %v3float %4
+         %29 = OpAccessChain %_ptr_IncomingRayPayloadNV_v3float %2 %uint_2
+               OpStore %29 %27
+         %48 = OpFAdd %v3float %26 %26
+         %49 = OpCompositeExtract %float %48 0
+         %50 = OpCompositeExtract %float %48 1
+         %51 = OpCompositeExtract %float %48 2
+         %43 = OpFAdd %float %50 %float_5
+         %45 = OpCompositeConstruct %v3float %49 %43 %51
+         %46 = OpAccessChain %_ptr_IncomingRayPayloadNV_v3float %2 %uint_1
+               OpStore %46 %45
+               OpReturn
+               OpFunctionEnd
