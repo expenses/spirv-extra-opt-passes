@@ -178,6 +178,7 @@ struct VectorInfo {
 struct CompositeExtractInfo {
     vector_id: Word,
     dimension_index: u32,
+    num_dimensions: u32,
 }
 
 #[derive(Debug)]
@@ -276,6 +277,7 @@ pub fn vectorisation_pass(module: &mut Module) -> bool {
                             CompositeExtractInfo {
                                 vector_id,
                                 dimension_index,
+                                num_dimensions: vector_type.dimensions,
                             },
                         );
 
@@ -499,7 +501,7 @@ fn vectorise(
     }
 
     let operands = get_operands(
-        vector_info.id,
+        vector_info,
         follow_up_instructions,
         composite_extract_info,
         &mut opcode,
@@ -570,7 +572,7 @@ fn get_id_ref(operand: &Operand) -> Option<Word> {
 }
 
 fn shared_vector_operand_at_index(
-    vector_id: Word,
+    vector_info: &VectorInfo,
     operand_index: usize,
     follow_up_instructions: &[&Instruction],
     composite_extract_info: &HashMap<Word, CompositeExtractInfo>,
@@ -582,7 +584,11 @@ fn shared_vector_operand_at_index(
             Some(&CompositeExtractInfo {
                 vector_id: other_vector_id,
                 dimension_index,
-            }) if dimension_index == i as u32 && other_vector_id != vector_id => {
+                num_dimensions: other_num_dimensions,
+            }) if dimension_index == i as u32
+                && other_vector_id != vector_info.id
+                && other_num_dimensions == vector_info.ty.dimensions =>
+            {
                 Some(other_vector_id)
             }
             _ => None,
@@ -616,10 +622,12 @@ fn takes_vector_twice(
                 Some(&CompositeExtractInfo {
                     vector_id: vector_id_1,
                     dimension_index: dimension_index_1,
+                    ..
                 }),
                 Some(&CompositeExtractInfo {
                     vector_id: vector_id_2,
                     dimension_index: dimension_index_2,
+                    ..
                 }),
             ) => {
                 dimension_index_1 == i
@@ -651,7 +659,7 @@ fn operands_for_two_operand_glsl_inst<'a>(
 }
 
 fn get_operands(
-    vector_id: Word,
+    vector_info: &VectorInfo,
     follow_up_instructions: &[&Instruction],
     composite_extract_info: &HashMap<Word, CompositeExtractInfo>,
     opcode: &mut Op,
@@ -677,7 +685,7 @@ fn get_operands(
         return Some(vec![
             Operand::IdRef(glsl_ext_inst_id),
             Operand::LiteralExtInstInteger(gl_op as u32),
-            Operand::IdRef(vector_id),
+            Operand::IdRef(vector_info.id),
             other_operand.clone(),
         ]);
     }
@@ -690,7 +698,7 @@ fn get_operands(
         )?;
 
         return Some(vec![
-            Operand::IdRef(vector_id),
+            Operand::IdRef(vector_info.id),
             true_op.clone(),
             false_op.clone(),
         ]);
@@ -702,21 +710,24 @@ fn get_operands(
         all_items_equal(follow_up_instructions.iter().map(|inst| &inst.operands[1]));
 
     let vector_first_operand = shared_vector_operand_at_index(
-        vector_id,
+        vector_info,
         0,
         follow_up_instructions,
         composite_extract_info,
     );
 
     let vector_second_operand = shared_vector_operand_at_index(
-        vector_id,
+        vector_info,
         1,
         follow_up_instructions,
         composite_extract_info,
     );
 
-    let takes_vector_twice =
-        takes_vector_twice(vector_id, follow_up_instructions, composite_extract_info);
+    let takes_vector_twice = takes_vector_twice(
+        vector_info.id,
+        follow_up_instructions,
+        composite_extract_info,
+    );
 
     let (other_operand, vector_is_first_operand, other_operand_is_vector) = shared_first_operand
         .map(|operand| {
@@ -729,7 +740,7 @@ fn get_operands(
         .or_else(|| vector_second_operand.map(|id| (Operand::IdRef(id), true, true)))
         .or_else(|| {
             if takes_vector_twice {
-                Some((Operand::IdRef(vector_id), true, true))
+                Some((Operand::IdRef(vector_info.id), true, true))
             } else {
                 None
             }
@@ -740,9 +751,9 @@ fn get_operands(
     }
 
     Some(if vector_is_first_operand {
-        vec![Operand::IdRef(vector_id), other_operand]
+        vec![Operand::IdRef(vector_info.id), other_operand]
     } else {
-        vec![other_operand, Operand::IdRef(vector_id)]
+        vec![other_operand, Operand::IdRef(vector_info.id)]
     })
 }
 

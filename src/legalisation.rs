@@ -1,6 +1,10 @@
 use rspirv::dr::{Instruction, Module, Operand};
 use rspirv::spirv::Op;
-use std::collections::{hash_map::Entry, HashMap};
+use std::collections::{
+    hash_map::Entry,
+    HashMap,
+    //HashSet
+};
 
 /// Deduplicate all OpTypeVectors. A SPIR-V module is not valid if multiple OpTypeVectors
 /// are specified with the same scalar type and dimensions.
@@ -43,7 +47,7 @@ pub fn dedup_vector_types_pass(module: &mut Module) {
 
 /// Change the operands for specific functions that return vectors from constant scalars to constant vectors.
 ///
-/// This needs to happen aftet the vectorisation pass as passing in scalar operands to certain vector functions it not allowed.
+/// This needs to happen after the vectorisation pass as passing in scalar operands to certain vector functions it not allowed.
 ///
 /// This might result in multiple OpVector types with the same scalar type and dimensions, so the `dedup_vector_types` pass should be ran after this.
 pub fn fix_non_vector_constant_operand(module: &mut Module) {
@@ -61,6 +65,19 @@ pub fn fix_non_vector_constant_operand(module: &mut Module) {
             }
         })
         .collect::<HashMap<_, _>>();
+
+    /*
+    let scalar_types = module.types_global_values.iter()
+        .filter_map(|instruction| {
+            match instruction.class.opcode {
+                Op::TypeBool | Op::TypeInt | Op::TypeFloat => instruction.result_id,
+                _ => None
+            }
+        })
+        .collect::<HashSet<_>>();
+
+    let mut id_to_result_scalar_type = HashMap::new();
+    */
 
     let vector_types = module
         .types_global_values
@@ -84,6 +101,19 @@ pub fn fix_non_vector_constant_operand(module: &mut Module) {
     for function in &mut module.functions {
         for block in &mut function.blocks {
             for instruction in &mut block.instructions {
+                let result_type = match instruction.result_type {
+                    Some(result_type) => result_type,
+                    _ => continue,
+                };
+
+                /*
+                if let Some(result_id) = instruction.result_id {
+                    if scalar_types.contains(&result_type) {
+                        id_to_result_scalar_type.insert(result_id, result_type);
+                    }
+                }
+                */
+
                 match instruction.class.opcode {
                     Op::IEqual
                     | Op::FOrdEqual
@@ -94,11 +124,6 @@ pub fn fix_non_vector_constant_operand(module: &mut Module) {
                     | Op::FOrdLessThanEqual => {}
                     _ => continue,
                 }
-
-                let result_type = match instruction.result_type {
-                    Some(result_type) => result_type,
-                    _ => continue,
-                };
 
                 if let Some(dimensions) = vector_types.get(&result_type).cloned() {
                     for operand in &mut instruction.operands {
@@ -129,6 +154,9 @@ pub fn fix_non_vector_constant_operand(module: &mut Module) {
                             next_id += 1;
 
                             *operand = Operand::IdRef(constant_composite_id);
+                        } else {
+                            // todo: might need to handle this case.
+                            // if let Some(scalar_type) = id_to_result_scalar_type.get(id) {}
                         }
                     }
                 }
