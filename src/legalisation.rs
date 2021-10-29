@@ -85,7 +85,13 @@ pub fn fix_non_vector_constant_operand(module: &mut Module) {
         for block in &mut function.blocks {
             for instruction in &mut block.instructions {
                 match instruction.class.opcode {
-                    Op::IEqual | Op::FOrdEqual | Op::Select | Op::ExtInst | Op::FSub | Op::FAdd => {}
+                    Op::IEqual
+                    | Op::FOrdEqual
+                    | Op::Select
+                    | Op::ExtInst
+                    | Op::FSub
+                    | Op::FAdd
+                    | Op::FOrdLessThanEqual => {}
                     _ => continue,
                 }
 

@@ -1,6 +1,6 @@
 use num_traits::cast::FromPrimitive;
 use rspirv::dr::{Instruction, Module, Operand};
-use rspirv::spirv::{Op, Word, GLOp};
+use rspirv::spirv::{GLOp, Op, Word};
 use std::collections::{hash_map::Entry, HashMap, HashSet};
 
 pub mod legalisation;
@@ -487,7 +487,8 @@ fn vectorise(
         | Op::IAdd
         | Op::FOrdEqual
         | Op::Select
-        | Op::ExtInst => {}
+        | Op::ExtInst
+        | Op::FOrdLessThanEqual => {}
         // Don't think we can handle the case where each component is used as the scalar in a vector times scalar op.
         Op::VectorTimesScalar => return None,
         Op::CompositeConstruct => return None,
@@ -659,8 +660,11 @@ fn get_operands(
     if *opcode == Op::ExtInst {
         let glsl_ext_inst_id = glsl_ext_inst_id?;
 
-        let (gl_op, other_operand) = operands_for_two_operand_glsl_inst(follow_up_instructions, glsl_ext_inst_id, 2)
-            .or_else(|| operands_for_two_operand_glsl_inst(follow_up_instructions, glsl_ext_inst_id, 3))?;
+        let (gl_op, other_operand) =
+            operands_for_two_operand_glsl_inst(follow_up_instructions, glsl_ext_inst_id, 2)
+                .or_else(|| {
+                    operands_for_two_operand_glsl_inst(follow_up_instructions, glsl_ext_inst_id, 3)
+                })?;
 
         // todo: only some gl ops can be vectorised.
         let gl_op = match gl_op {
