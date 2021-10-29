@@ -1,6 +1,6 @@
 use num_traits::cast::FromPrimitive;
 use rspirv::dr::{Instruction, Module, Operand};
-use rspirv::spirv::{Op, Word};
+use rspirv::spirv::{Op, Word, GLOp};
 use std::collections::{hash_map::Entry, HashMap, HashSet};
 
 pub mod legalisation;
@@ -631,7 +631,7 @@ fn takes_vector_twice(
     })
 }
 
-fn glsl_operands<'a>(
+fn operands_for_two_operand_glsl_inst<'a>(
     follow_up_instructions: &[&'a Instruction],
     glsl_ext_inst_id: Word,
     other_index: usize,
@@ -659,14 +659,16 @@ fn get_operands(
     if *opcode == Op::ExtInst {
         let glsl_ext_inst_id = glsl_ext_inst_id?;
 
-        let (gl_op, other_operand) = glsl_operands(follow_up_instructions, glsl_ext_inst_id, 2)
-            .or_else(|| glsl_operands(follow_up_instructions, glsl_ext_inst_id, 3))?;
+        let (gl_op, other_operand) = operands_for_two_operand_glsl_inst(follow_up_instructions, glsl_ext_inst_id, 2)
+            .or_else(|| operands_for_two_operand_glsl_inst(follow_up_instructions, glsl_ext_inst_id, 3))?;
 
         // todo: only some gl ops can be vectorised.
         let gl_op = match gl_op {
-            Operand::LiteralExtInstInteger(int) => rspirv::spirv::GLOp::from_u32(*int)?,
+            Operand::LiteralExtInstInteger(int) => GLOp::from_u32(*int)?,
             _ => return None,
         };
+
+        // todo: it's possible that some scalar glsl ops can't be vectorised. More testing is needed.
 
         return Some(vec![
             Operand::IdRef(glsl_ext_inst_id),
