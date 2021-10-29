@@ -490,7 +490,8 @@ fn vectorise(
         | Op::FOrdEqual
         | Op::Select
         | Op::ExtInst
-        | Op::FOrdLessThanEqual => {}
+        | Op::FOrdLessThanEqual
+        | Op::FNegate => {}
         // Don't think we can handle the case where each component is used as the scalar in a vector times scalar op.
         Op::VectorTimesScalar => return None,
         Op::CompositeConstruct => return None,
@@ -702,6 +703,14 @@ fn get_operands(
             true_op.clone(),
             false_op.clone(),
         ]);
+    }
+
+    // Single operand instructions such as FNegate are easily converted into vector instructions.
+    if follow_up_instructions
+        .iter()
+        .all(|inst| inst.operands.len() == 1)
+    {
+        return Some(vec![Operand::IdRef(vector_info.id)]);
     }
 
     let shared_first_operand =
