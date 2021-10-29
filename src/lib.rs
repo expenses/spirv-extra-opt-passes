@@ -11,7 +11,7 @@ pub fn unused_assignment_pruning_pass(module: &mut Module) -> bool {
     let mut result_ids = HashSet::new();
     let mut referenced_ids = HashSet::new();
 
-    let glsl_ext_inst_id = get_glsl_ext_inst_id(&module);
+    let glsl_ext_inst_id = get_glsl_ext_inst_id(module);
 
     fn is_unknown_extension_instruction(
         instruction: &Instruction,
@@ -180,6 +180,7 @@ struct CompositeExtractInfo {
     dimension_index: u32,
 }
 
+#[derive(Debug)]
 struct FollowUpInstruction {
     instruction: Instruction,
     insertion_index: usize,
@@ -225,7 +226,7 @@ pub fn vectorisation_pass(module: &mut Module) -> bool {
         }
     }
 
-    let glsl_ext_inst_id = get_glsl_ext_inst_id(&module);
+    let glsl_ext_inst_id = get_glsl_ext_inst_id(module);
 
     let mut next_id = module.header.as_ref().unwrap().bound;
 
@@ -237,14 +238,13 @@ pub fn vectorisation_pass(module: &mut Module) -> bool {
     for function in &mut module.functions {
         for block in &mut function.blocks {
             let mut vector_info = HashMap::new();
-            let mut follow_up_instructions: HashMap<u32, Option<FollowUpInstruction>> =
-                HashMap::new();
+            let mut follow_up_instructions: HashMap<u32, Vec<FollowUpInstruction>> = HashMap::new();
 
             for (insertion_index, instruction) in block.instructions.iter().enumerate() {
                 for operand in &instruction.operands {
                     if let Operand::IdRef(id) = operand {
                         if let Some(follow_up_instruction) = follow_up_instructions.get_mut(id) {
-                            follow_up_instruction.get_or_insert(FollowUpInstruction {
+                            follow_up_instruction.push(FollowUpInstruction {
                                 instruction: instruction.clone(),
                                 insertion_index,
                             });
@@ -294,7 +294,7 @@ pub fn vectorisation_pass(module: &mut Module) -> bool {
                         vector_info.extracted_component_ids[dimension_index as usize] =
                             Some(result_id);
 
-                        follow_up_instructions.insert(result_id, None);
+                        follow_up_instructions.insert(result_id, Vec::new());
                     }
                     _ => {
                         let (result_id, result_type) =
@@ -313,25 +313,71 @@ pub fn vectorisation_pass(module: &mut Module) -> bool {
             let mut vector_info = vector_info.iter().collect::<Vec<_>>();
             vector_info.sort_unstable_by_key(|&(id, _)| id);
 
-            for (_, vector_info) in &vector_info {
-                let modified = vectorise(
-                    vector_info,
-                    &follow_up_instructions,
-                    &composite_extract_info,
-                    &mut ids_to_replace,
-                    &mut module.types_global_values,
-                    &mut block.instructions,
-                    &mut next_id,
-                    glsl_ext_inst_id,
-                )
-                .is_some();
+            'vector_info: for (_, vector_info) in &vector_info {
+                let extracted_component_ids = match vector_info
+                    .extracted_component_ids
+                    .iter()
+                    .cloned()
+                    .collect::<Option<Vec<_>>>()
+                {
+                    Some(component_ids) => component_ids,
+                    None => continue,
+                };
 
-                changed |= modified;
+                let first_follow_ups = match follow_up_instructions.get(&extracted_component_ids[0])
+                {
+                    Some(follow_ups) => follow_ups,
+                    _ => continue,
+                };
 
-                if modified {
-                    // Break from the loop as it's easier to just re-run the pass than update then state for a second
-                    // modification.
-                    break;
+                'follow_ups: for follow_up in first_follow_ups {
+                    let opcode = follow_up.instruction.class.opcode;
+
+                    let mut instructions = vec![&follow_up.instruction];
+                    let mut insertion_index = follow_up.insertion_index;
+
+                    // Find all the other follow up instructions that share the same opcode.
+                    for component_id in &extracted_component_ids[1..] {
+                        let other_follow_up = match follow_up_instructions
+                            .get(component_id)
+                            .and_then(|follow_ups| {
+                                follow_ups
+                                    .iter()
+                                    .find(|follow_up| follow_up.instruction.class.opcode == opcode)
+                            }) {
+                            Some(follow_up) => follow_up,
+                            _ => continue 'follow_ups,
+                        };
+
+                        instructions.push(&other_follow_up.instruction);
+                        // We want to insert the instruction at the index of the first follow up instruction.
+                        //
+                        // Inserting sooner, like at the first component extract instruction, might not work as
+                        // any other operands might not be defined.
+                        insertion_index = insertion_index.min(other_follow_up.insertion_index);
+                    }
+
+                    let modified = vectorise(
+                        vector_info,
+                        &extracted_component_ids,
+                        &instructions,
+                        insertion_index,
+                        &composite_extract_info,
+                        &mut ids_to_replace,
+                        &mut module.types_global_values,
+                        &mut block.instructions,
+                        &mut next_id,
+                        glsl_ext_inst_id,
+                    )
+                    .is_some();
+
+                    changed |= modified;
+
+                    if modified {
+                        // Break from the loop as it's easier to just re-run the pass than update then state for a second
+                        // modification.
+                        break 'vector_info;
+                    }
                 }
             }
         }
@@ -346,7 +392,7 @@ pub fn vectorisation_pass(module: &mut Module) -> bool {
                         _ => continue,
                     };
 
-                    if let Some(new_id) = ids_to_replace.get(&id) {
+                    if let Some(new_id) = ids_to_replace.get(id) {
                         *operand = Operand::IdRef(*new_id);
                     }
                 }
@@ -371,7 +417,9 @@ pub fn vectorisation_pass(module: &mut Module) -> bool {
 
 fn vectorise(
     vector_info: &VectorInfo,
-    follow_up_instructions: &HashMap<Word, Option<FollowUpInstruction>>,
+    extracted_component_ids: &[Word],
+    follow_up_instructions: &[&Instruction],
+    insertion_index: usize,
     composite_extract_info: &HashMap<Word, CompositeExtractInfo>,
     ids_to_replace: &mut HashMap<Word, Word>,
     types_global_values: &mut Vec<Instruction>,
@@ -379,30 +427,6 @@ fn vectorise(
     next_id: &mut u32,
     glsl_ext_inst_id: Option<Word>,
 ) -> Option<()> {
-    let extracted_component_ids = vector_info
-        .extracted_component_ids
-        .iter()
-        .cloned()
-        .collect::<Option<Vec<_>>>()?;
-
-    // We want to insert the instruction at the index of the first follow up instruction.
-    //
-    // Inserting sooner, like at the first component extract instruction, might not work as
-    // any other operands might not be defined.
-    let insertion_index = follow_up_instructions
-        .get(&extracted_component_ids[0])?
-        .as_ref()?
-        .insertion_index;
-
-    let follow_up_instructions = extracted_component_ids
-        .iter()
-        .map(|id| {
-            follow_up_instructions[id]
-                .as_ref()
-                .map(|follow_up| &follow_up.instruction)
-        })
-        .collect::<Option<Vec<&Instruction>>>()?;
-
     let scalar_type = follow_up_instructions[0].result_type?;
 
     let follow_up_instruction_result_ids = follow_up_instructions
@@ -429,7 +453,7 @@ fn vectorise(
                 .iter()
                 .zip(extracted_component_ids)
                 .all(|(operand, component_id)| match operand {
-                    Operand::IdRef(id) => *id == component_id,
+                    Operand::IdRef(id) => id == component_id,
                     _ => false,
                 });
 
@@ -464,6 +488,9 @@ fn vectorise(
         | Op::FOrdEqual
         | Op::Select
         | Op::ExtInst => {}
+        // Don't think we can handle the case where each component is used as the scalar in a vector times scalar op.
+        Op::VectorTimesScalar => return None,
+        Op::CompositeConstruct => return None,
         _ => {
             println!("!!Unhandled opcode: {:?}!!", opcode);
             return None;
@@ -472,7 +499,7 @@ fn vectorise(
 
     let operands = get_operands(
         vector_info.id,
-        &follow_up_instructions,
+        follow_up_instructions,
         composite_extract_info,
         &mut opcode,
         glsl_ext_inst_id,
@@ -534,17 +561,21 @@ fn vectorise(
     Some(())
 }
 
-fn vector_operand(
+fn get_id_ref(operand: &Operand) -> Option<Word> {
+    match operand {
+        Operand::IdRef(id) => Some(*id),
+        _ => None,
+    }
+}
+
+fn shared_vector_operand_at_index(
     vector_id: Word,
     operand_index: usize,
     follow_up_instructions: &[&Instruction],
     composite_extract_info: &HashMap<Word, CompositeExtractInfo>,
 ) -> Option<Word> {
     all_items_equal_filter(follow_up_instructions.iter().enumerate().map(|(i, inst)| {
-        let id = match inst.operands[operand_index] {
-            Operand::IdRef(id) => id,
-            _ => return None,
-        };
+        let id = get_id_ref(&inst.operands[operand_index])?;
 
         match composite_extract_info.get(&id) {
             Some(&CompositeExtractInfo {
@@ -629,7 +660,7 @@ fn get_operands(
         let glsl_ext_inst_id = glsl_ext_inst_id?;
 
         let (gl_op, other_operand) = glsl_operands(follow_up_instructions, glsl_ext_inst_id, 2)
-            .or(glsl_operands(follow_up_instructions, glsl_ext_inst_id, 3))?;
+            .or_else(|| glsl_operands(follow_up_instructions, glsl_ext_inst_id, 3))?;
 
         // todo: only some gl ops can be vectorised.
         let gl_op = match gl_op {
@@ -664,22 +695,22 @@ fn get_operands(
     let shared_second_operand =
         all_items_equal(follow_up_instructions.iter().map(|inst| &inst.operands[1]));
 
-    let vector_first_operand = vector_operand(
+    let vector_first_operand = shared_vector_operand_at_index(
         vector_id,
         0,
-        &follow_up_instructions,
+        follow_up_instructions,
         composite_extract_info,
     );
 
-    let vector_second_operand = vector_operand(
+    let vector_second_operand = shared_vector_operand_at_index(
         vector_id,
         1,
-        &follow_up_instructions,
+        follow_up_instructions,
         composite_extract_info,
     );
 
     let takes_vector_twice =
-        takes_vector_twice(vector_id, &follow_up_instructions, &composite_extract_info);
+        takes_vector_twice(vector_id, follow_up_instructions, composite_extract_info);
 
     let (other_operand, vector_is_first_operand, other_operand_is_vector) = shared_first_operand
         .map(|operand| {
@@ -712,10 +743,7 @@ fn get_operands(
 fn all_items_equal_filter<T: PartialEq>(
     mut iterator: impl Iterator<Item = Option<T>>,
 ) -> Option<T> {
-    let first_item = match iterator.next() {
-        Some(Some(item)) => item,
-        _ => return None,
-    };
+    let first_item = iterator.next()??;
 
     for item in iterator {
         if item.as_ref() != Some(&first_item) {
@@ -727,10 +755,7 @@ fn all_items_equal_filter<T: PartialEq>(
 }
 
 fn all_items_equal<T: PartialEq>(mut iterator: impl Iterator<Item = T>) -> Option<T> {
-    let first_item = match iterator.next() {
-        Some(item) => item,
-        None => return None,
-    };
+    let first_item = iterator.next()?;
 
     for item in iterator {
         if item != first_item {

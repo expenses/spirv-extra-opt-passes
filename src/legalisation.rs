@@ -101,7 +101,7 @@ pub fn fix_non_vector_constant_operand(module: &mut Module) {
                             _ => continue,
                         };
 
-                        if let Some(constant_type) = constants.get(&id).cloned() {
+                        if let Some(constant_type) = constants.get(id).cloned() {
                             let type_vector_id = next_id;
                             module.types_global_values.push(Instruction::new(
                                 Op::TypeVector,
