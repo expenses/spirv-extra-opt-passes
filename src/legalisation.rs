@@ -121,7 +121,8 @@ pub fn fix_non_vector_constant_operand(module: &mut Module) {
                     | Op::ExtInst
                     | Op::FSub
                     | Op::FAdd
-                    | Op::FOrdLessThanEqual => {}
+                    | Op::FOrdLessThanEqual
+                    | Op::FDiv => {}
                     _ => continue,
                 }
 

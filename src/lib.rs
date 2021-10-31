@@ -486,6 +486,7 @@ fn vectorise(
         Op::FMul
         | Op::FAdd
         | Op::FSub
+        | Op::FDiv
         | Op::IEqual
         | Op::IAdd
         | Op::FOrdEqual
