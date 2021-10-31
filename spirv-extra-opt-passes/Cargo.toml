@@ -7,3 +7,4 @@ edition = "2021"
 rspirv = "0.10.0"
 structopt = "0.3.25"
 spirv-extra-opt-passes = { path = ".." }
+env_logger = "0.9.0"

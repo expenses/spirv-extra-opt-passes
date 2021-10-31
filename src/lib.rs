@@ -1,11 +1,12 @@
-use num_traits::cast::FromPrimitive;
 use rspirv::dr::{Instruction, Module, Operand};
-use rspirv::spirv::{GLOp, Op, Word};
+use rspirv::spirv::{Op, Word};
 use std::collections::{hash_map::Entry, HashMap, HashSet};
 
 pub mod legalisation;
+mod vectorisation_operands;
 
 use legalisation::{dedup_vector_types_pass, fix_non_vector_constant_operand};
+use vectorisation_operands::get_operands;
 
 pub fn unused_assignment_pruning_pass(module: &mut Module) -> bool {
     let mut result_ids = HashSet::new();
@@ -465,8 +466,8 @@ fn vectorise(
 
             let composite_construct_id = follow_up_instruction_result_ids[0];
 
-            println!(
-                "Removing references to {:?} at {}",
+            log::trace!(
+                "Removing references to {:?} at %{}",
                 Op::CompositeConstruct,
                 composite_construct_id
             );
@@ -496,18 +497,29 @@ fn vectorise(
         Op::VectorTimesScalar => return None,
         Op::CompositeConstruct => return None,
         _ => {
-            println!("!!Unhandled opcode: {:?}!!", opcode);
+            log::debug!(target: "unhandled", "Unhandled opcode: {:?}", opcode);
             return None;
         }
     }
 
-    let operands = get_operands(
+    let operands = match get_operands(
         vector_info,
         follow_up_instructions,
         composite_extract_info,
         &mut opcode,
         glsl_ext_inst_id,
-    )?;
+    ) {
+        Some(operands) => operands,
+        None => {
+            log::debug!(
+                "Failed to get operands for {:?} at %{}",
+                opcode,
+                follow_up_instruction_result_ids[0]
+            );
+
+            return None;
+        }
+    };
 
     let vector_id = *next_id;
 
@@ -525,9 +537,11 @@ fn vectorise(
 
     let inserted_instruction_id = *next_id;
 
-    println!(
-        "Replacing {} with {:?} ({})",
-        extracted_component_ids[0], opcode, inserted_instruction_id
+    log::trace!(
+        "Replacing %{} with {:?} (%{})",
+        extracted_component_ids[0],
+        opcode,
+        inserted_instruction_id
     );
 
     // Replace the first OpCompositeExtract with the VectorTimes Scalar and the rest with Nops.
@@ -563,253 +577,6 @@ fn vectorise(
     }
 
     Some(())
-}
-
-fn get_id_ref(operand: &Operand) -> Option<Word> {
-    match operand {
-        Operand::IdRef(id) => Some(*id),
-        _ => None,
-    }
-}
-
-fn shared_vector_operand_at_index(
-    vector_info: &VectorInfo,
-    operand_index: usize,
-    follow_up_instructions: &[&Instruction],
-    composite_extract_info: &HashMap<Word, CompositeExtractInfo>,
-) -> Option<Word> {
-    all_items_equal_filter(follow_up_instructions.iter().enumerate().map(|(i, inst)| {
-        let id = get_id_ref(&inst.operands[operand_index])?;
-
-        match composite_extract_info.get(&id) {
-            Some(&CompositeExtractInfo {
-                vector_id: other_vector_id,
-                dimension_index,
-                num_dimensions: other_num_dimensions,
-            }) if dimension_index == i as u32
-                && other_vector_id != vector_info.id
-                && other_num_dimensions == vector_info.ty.dimensions =>
-            {
-                Some(other_vector_id)
-            }
-            _ => None,
-        }
-    }))
-}
-
-fn takes_vector_twice(
-    vector_id: Word,
-    follow_up_instructions: &[&Instruction],
-    composite_extract_info: &HashMap<Word, CompositeExtractInfo>,
-) -> bool {
-    follow_up_instructions.iter().enumerate().all(|(i, inst)| {
-        let id_1 = match inst.operands[0] {
-            Operand::IdRef(id) => id,
-            _ => return false,
-        };
-
-        let id_2 = match inst.operands[1] {
-            Operand::IdRef(id) => id,
-            _ => return false,
-        };
-
-        let i = i as u32;
-
-        match (
-            composite_extract_info.get(&id_1),
-            composite_extract_info.get(&id_2),
-        ) {
-            (
-                Some(&CompositeExtractInfo {
-                    vector_id: vector_id_1,
-                    dimension_index: dimension_index_1,
-                    ..
-                }),
-                Some(&CompositeExtractInfo {
-                    vector_id: vector_id_2,
-                    dimension_index: dimension_index_2,
-                    ..
-                }),
-            ) => {
-                dimension_index_1 == i
-                    && dimension_index_2 == i
-                    && vector_id_1 == vector_id
-                    && vector_id_2 == vector_id
-            }
-            _ => false,
-        }
-    })
-}
-
-fn operands_for_two_operand_glsl_inst<'a>(
-    follow_up_instructions: &[&'a Instruction],
-    glsl_ext_inst_id: Word,
-    other_index: usize,
-) -> Option<(&'a Operand, &'a Operand)> {
-    all_items_equal_filter(follow_up_instructions.iter().map(|inst| {
-        if inst.operands.len() != 4 {
-            return None;
-        }
-
-        if inst.operands[0] != Operand::IdRef(glsl_ext_inst_id) {
-            return None;
-        }
-
-        Some((&inst.operands[1], &inst.operands[other_index]))
-    }))
-}
-
-fn get_operands(
-    vector_info: &VectorInfo,
-    follow_up_instructions: &[&Instruction],
-    composite_extract_info: &HashMap<Word, CompositeExtractInfo>,
-    opcode: &mut Op,
-    glsl_ext_inst_id: Option<Word>,
-) -> Option<Vec<Operand>> {
-    if *opcode == Op::ExtInst {
-        let glsl_ext_inst_id = glsl_ext_inst_id?;
-
-        let (gl_op, other_operand) =
-            operands_for_two_operand_glsl_inst(follow_up_instructions, glsl_ext_inst_id, 2)
-                .or_else(|| {
-                    operands_for_two_operand_glsl_inst(follow_up_instructions, glsl_ext_inst_id, 3)
-                })?;
-
-        // todo: only some gl ops can be vectorised.
-        let gl_op = match gl_op {
-            Operand::LiteralExtInstInteger(int) => GLOp::from_u32(*int)?,
-            _ => return None,
-        };
-
-        // todo: it's possible that some scalar glsl ops can't be vectorised. More testing is needed.
-
-        return Some(vec![
-            Operand::IdRef(glsl_ext_inst_id),
-            Operand::LiteralExtInstInteger(gl_op as u32),
-            Operand::IdRef(vector_info.id),
-            other_operand.clone(),
-        ]);
-    }
-
-    if *opcode == Op::Select {
-        let (true_op, false_op) = all_items_equal(
-            follow_up_instructions
-                .iter()
-                .map(|inst| (&inst.operands[1], &inst.operands[2])),
-        )?;
-
-        return Some(vec![
-            Operand::IdRef(vector_info.id),
-            true_op.clone(),
-            false_op.clone(),
-        ]);
-    }
-
-    // Single operand instructions such as FNegate are easily converted into vector instructions.
-    if follow_up_instructions
-        .iter()
-        .all(|inst| inst.operands.len() == 1)
-    {
-        return Some(vec![Operand::IdRef(vector_info.id)]);
-    }
-
-    let shared_first_operand =
-        all_items_equal(follow_up_instructions.iter().map(|inst| &inst.operands[0]));
-    let shared_second_operand =
-        all_items_equal(follow_up_instructions.iter().map(|inst| &inst.operands[1]));
-
-    let vector_first_operand = shared_vector_operand_at_index(
-        vector_info,
-        0,
-        follow_up_instructions,
-        composite_extract_info,
-    );
-
-    let vector_second_operand = shared_vector_operand_at_index(
-        vector_info,
-        1,
-        follow_up_instructions,
-        composite_extract_info,
-    );
-
-    let takes_vector_twice = takes_vector_twice(
-        vector_info.id,
-        follow_up_instructions,
-        composite_extract_info,
-    );
-
-    let (other_operand, vector_is_first_operand, other_operand_is_vector) = shared_first_operand
-        .map(|operand| {
-            // The operation will get turned into OpVectorTimesScalar which needs the vector to be in the first position.
-            let vector_is_first = *opcode == Op::FMul;
-            (operand.clone(), vector_is_first, false)
-        })
-        .or_else(|| shared_second_operand.map(|operand| (operand.clone(), true, false)))
-        .or_else(|| vector_first_operand.map(|id| (Operand::IdRef(id), false, true)))
-        .or_else(|| vector_second_operand.map(|id| (Operand::IdRef(id), true, true)))
-        .or_else(|| {
-            if takes_vector_twice {
-                Some((Operand::IdRef(vector_info.id), true, true))
-            } else {
-                None
-            }
-        })?;
-
-    if *opcode == Op::FMul && !other_operand_is_vector {
-        *opcode = Op::VectorTimesScalar;
-    }
-
-    Some(if vector_is_first_operand {
-        vec![Operand::IdRef(vector_info.id), other_operand]
-    } else {
-        vec![other_operand, Operand::IdRef(vector_info.id)]
-    })
-}
-
-fn all_items_equal_filter<T: PartialEq>(
-    mut iterator: impl Iterator<Item = Option<T>>,
-) -> Option<T> {
-    let first_item = iterator.next()??;
-
-    for item in iterator {
-        if item.as_ref() != Some(&first_item) {
-            return None;
-        }
-    }
-
-    Some(first_item)
-}
-
-fn all_items_equal<T: PartialEq>(mut iterator: impl Iterator<Item = T>) -> Option<T> {
-    let first_item = iterator.next()?;
-
-    for item in iterator {
-        if item != first_item {
-            return None;
-        }
-    }
-
-    Some(first_item)
-}
-
-fn all_items_equal_by_key<I, T: PartialEq>(
-    mut iterator: impl Iterator<Item = I>,
-    closure: impl Fn(&I) -> T,
-) -> Option<I> {
-    let first_item = match iterator.next() {
-        Some(item) => item,
-        None => return None,
-    };
-
-    let first_key = closure(&first_item);
-
-    for item in iterator {
-        if closure(&item) != first_key {
-            return None;
-        }
-    }
-
-    Some(first_item)
 }
 
 pub fn all_passes(module: &mut Module) -> bool {
@@ -909,4 +676,50 @@ fn replace_globals(module: &mut Module, replacements: &HashMap<Word, Word>) {
             }
         }
     }
+}
+
+fn all_items_equal<T: PartialEq>(mut iterator: impl Iterator<Item = T>) -> Option<T> {
+    let first_item = iterator.next()?;
+
+    for item in iterator {
+        if item != first_item {
+            return None;
+        }
+    }
+
+    Some(first_item)
+}
+
+fn all_items_equal_by_key<I, T: PartialEq>(
+    mut iterator: impl Iterator<Item = I>,
+    closure: impl Fn(&I) -> T,
+) -> Option<I> {
+    let first_item = match iterator.next() {
+        Some(item) => item,
+        None => return None,
+    };
+
+    let first_key = closure(&first_item);
+
+    for item in iterator {
+        if closure(&item) != first_key {
+            return None;
+        }
+    }
+
+    Some(first_item)
+}
+
+fn all_items_equal_filter<T: PartialEq>(
+    mut iterator: impl Iterator<Item = Option<T>>,
+) -> Option<T> {
+    let first_item = iterator.next()??;
+
+    for item in iterator {
+        if item.as_ref() != Some(&first_item) {
+            return None;
+        }
+    }
+
+    Some(first_item)
 }

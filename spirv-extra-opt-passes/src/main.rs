@@ -20,6 +20,8 @@ fn assemble_module_into_bytes(module: &rspirv::dr::Module) -> Vec<u8> {
 }
 
 fn main() {
+    env_logger::init();
+
     let opt = Opt::from_args();
 
     let bytes = std::fs::read(&opt.filename).unwrap();
