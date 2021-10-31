@@ -130,9 +130,6 @@ pub(crate) fn get_operands(
     }
 
     if *opcode == Op::Select {
-        let false_op = all_items_equal(follow_up_instructions.iter().map(|inst| &inst.operands[2]))
-            .cloned()?;
-
         let true_op = shared_vector_operand_at_index(
             vector_info,
             1,
@@ -144,11 +141,18 @@ pub(crate) fn get_operands(
             all_items_equal(follow_up_instructions.iter().map(|inst| &inst.operands[1])).cloned()
         })?;
 
-        return Some(vec![
-            Operand::IdRef(vector_info.id),
-            true_op,
-            false_op.clone(),
-        ]);
+        let false_op = shared_vector_operand_at_index(
+            vector_info,
+            2,
+            follow_up_instructions,
+            composite_extract_info,
+        )
+        .map(|id| Operand::IdRef(id))
+        .or_else(|| {
+            all_items_equal(follow_up_instructions.iter().map(|inst| &inst.operands[2])).cloned()
+        })?;
+
+        return Some(vec![Operand::IdRef(vector_info.id), true_op, false_op]);
     }
 
     // Single operand instructions such as FNegate are easily converted into vector instructions.

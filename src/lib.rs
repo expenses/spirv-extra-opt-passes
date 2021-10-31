@@ -493,6 +493,7 @@ fn vectorise(
         | Op::FUnordNotEqual
         | Op::FOrdGreaterThan
         | Op::FOrdGreaterThanEqual
+        | Op::FOrdLessThan
         | Op::FOrdLessThanEqual
         | Op::Select
         | Op::ExtInst
@@ -505,7 +506,9 @@ fn vectorise(
         | Op::UGreaterThanEqual
         | Op::UGreaterThan
         | Op::ULessThan
-        | Op::ULessThanEqual => {}
+        | Op::ULessThanEqual
+        | Op::LogicalNotEqual
+        | Op::FConvert => {}
         // todo: spirv-val thinks that bitcasting vectors is legal, but I'm not sure if it's correct.
         Op::Bitcast => {}
         // Don't think we can handle the case where each component is used as the scalar in a vector times scalar op.

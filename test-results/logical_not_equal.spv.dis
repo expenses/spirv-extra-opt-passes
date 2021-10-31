@@ -1,0 +1,48 @@
+; SPIR-V
+; Version: 1.0
+; Generator: Google rspirv; 0
+; Bound: 75
+; Schema: 0
+               OpCapability Int8
+               OpCapability Shader
+               OpMemoryModel Logical Simple
+               OpEntryPoint Fragment %1 "main" %2 %3 %4 %5
+               OpExecutionMode %1 OriginUpperLeft
+               OpDecorate %2 Location 0
+               OpDecorate %3 Location 1
+               OpDecorate %4 Location 2
+               OpDecorate %5 Location 0
+      %uchar = OpTypeInt 8 0
+    %v4uchar = OpTypeVector %uchar 4
+      %float = OpTypeFloat 32
+    %v4float = OpTypeVector %float 4
+       %bool = OpTypeBool
+       %void = OpTypeVoid
+       %uint = OpTypeInt 32 0
+     %v4uint = OpTypeVector %uint 4
+%_ptr_Output_v4uchar = OpTypePointer Output %v4uchar
+         %21 = OpTypeFunction %void
+%_ptr_Input_v4float = OpTypePointer Input %v4float
+          %2 = OpVariable %_ptr_Input_v4float Input
+          %3 = OpVariable %_ptr_Input_v4float Input
+%_ptr_Input_v4uint = OpTypePointer Input %v4uint
+          %4 = OpVariable %_ptr_Input_v4uint Input
+          %5 = OpVariable %_ptr_Output_v4uchar Output
+    %uchar_0 = OpConstant %uchar 0
+       %true = OpConstantTrue %bool
+    %uchar_1 = OpConstant %uchar 1
+    %float_4 = OpConstant %float 4
+     %v4bool = OpTypeVector %bool 4
+         %56 = OpConstantComposite %v4float %float_4 %float_4 %float_4 %float_4
+         %64 = OpConstantComposite %v4bool %true %true %true %true
+         %72 = OpConstantComposite %v4uchar %uchar_1 %uchar_1 %uchar_1 %uchar_1
+         %74 = OpConstantComposite %v4uchar %uchar_0 %uchar_0 %uchar_0 %uchar_0
+          %1 = OpFunction %void None %21
+         %28 = OpLabel
+         %29 = OpLoad %v4float %2
+         %50 = OpFOrdGreaterThan %v4bool %29 %56
+         %58 = OpLogicalNotEqual %v4bool %50 %64
+         %66 = OpSelect %v4uchar %58 %72 %74
+               OpStore %5 %66
+               OpReturn
+               OpFunctionEnd
