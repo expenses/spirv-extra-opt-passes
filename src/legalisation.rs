@@ -55,7 +55,7 @@ pub fn fix_non_vector_constant_operand(module: &mut Module) {
         .types_global_values
         .iter()
         .filter_map(|instruction| {
-            if instruction.class.opcode == Op::Constant {
+            if matches!(instruction.class.opcode, Op::Constant | Op::ConstantFalse) {
                 match (instruction.result_id, instruction.result_type) {
                     (Some(result_id), Some(result_type)) => Some((result_id, result_type)),
                     _ => None,
@@ -121,8 +121,19 @@ pub fn fix_non_vector_constant_operand(module: &mut Module) {
                     | Op::ExtInst
                     | Op::FSub
                     | Op::FAdd
+                    | Op::FUnordNotEqual
                     | Op::FOrdLessThanEqual
-                    | Op::FDiv => {}
+                    | Op::FOrdGreaterThan
+                    | Op::FOrdGreaterThanEqual
+                    | Op::FDiv
+                    | Op::IAdd
+                    | Op::ISub
+                    | Op::IMul
+                    | Op::INotEqual
+                    | Op::UGreaterThanEqual
+                    | Op::UGreaterThan
+                    | Op::ULessThan
+                    | Op::ULessThanEqual => {}
                     _ => continue,
                 }
 

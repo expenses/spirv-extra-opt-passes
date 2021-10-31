@@ -481,7 +481,7 @@ fn vectorise(
         }
     }
 
-    // Only allow certain types for now
+    // Only allow certain opcodes for now
     match opcode {
         Op::FMul
         | Op::FAdd
@@ -490,10 +490,24 @@ fn vectorise(
         | Op::IEqual
         | Op::IAdd
         | Op::FOrdEqual
+        | Op::FUnordNotEqual
+        | Op::FOrdGreaterThan
+        | Op::FOrdGreaterThanEqual
+        | Op::FOrdLessThanEqual
         | Op::Select
         | Op::ExtInst
-        | Op::FOrdLessThanEqual
-        | Op::FNegate => {}
+        | Op::FNegate
+        | Op::ConvertSToF
+        | Op::ConvertUToF
+        | Op::ISub
+        | Op::IMul
+        | Op::INotEqual
+        | Op::UGreaterThanEqual
+        | Op::UGreaterThan
+        | Op::ULessThan
+        | Op::ULessThanEqual => {}
+        // todo: spirv-val thinks that bitcasting vectors is legal, but I'm not sure if it's correct.
+        Op::Bitcast => {}
         // Don't think we can handle the case where each component is used as the scalar in a vector times scalar op.
         Op::VectorTimesScalar => return None,
         Op::CompositeConstruct => return None,

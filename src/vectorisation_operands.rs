@@ -114,7 +114,6 @@ pub(crate) fn get_operands(
                     operands_for_two_operand_glsl_inst(follow_up_instructions, glsl_ext_inst_id, 3)
                 })?;
 
-        // todo: only some gl ops can be vectorised.
         let gl_op = match gl_op {
             Operand::LiteralExtInstInteger(int) => GLOp::from_u32(*int)?,
             _ => return None,
@@ -131,15 +130,23 @@ pub(crate) fn get_operands(
     }
 
     if *opcode == Op::Select {
-        let (true_op, false_op) = all_items_equal(
-            follow_up_instructions
-                .iter()
-                .map(|inst| (&inst.operands[1], &inst.operands[2])),
-        )?;
+        let false_op = all_items_equal(follow_up_instructions.iter().map(|inst| &inst.operands[2]))
+            .cloned()?;
+
+        let true_op = shared_vector_operand_at_index(
+            vector_info,
+            1,
+            follow_up_instructions,
+            composite_extract_info,
+        )
+        .map(|id| Operand::IdRef(id))
+        .or_else(|| {
+            all_items_equal(follow_up_instructions.iter().map(|inst| &inst.operands[1])).cloned()
+        })?;
 
         return Some(vec![
             Operand::IdRef(vector_info.id),
-            true_op.clone(),
+            true_op,
             false_op.clone(),
         ]);
     }

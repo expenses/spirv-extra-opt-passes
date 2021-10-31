@@ -1,0 +1,51 @@
+; SPIR-V
+; Version: 1.0
+; Generator: Google rspirv; 0
+; Bound: 108
+; Schema: 0
+               OpCapability Int8
+               OpCapability Shader
+               OpMemoryModel Logical Simple
+               OpEntryPoint Fragment %1 "main" %2 %3 %4 %5
+               OpExecutionMode %1 OriginUpperLeft
+               OpDecorate %2 Location 0
+               OpDecorate %3 Location 1
+               OpDecorate %4 Location 2
+               OpDecorate %5 Location 0
+      %uchar = OpTypeInt 8 0
+    %v4uchar = OpTypeVector %uchar 4
+      %float = OpTypeFloat 32
+    %v4float = OpTypeVector %float 4
+       %bool = OpTypeBool
+       %void = OpTypeVoid
+       %uint = OpTypeInt 32 0
+     %v4uint = OpTypeVector %uint 4
+%_ptr_Output_v4uchar = OpTypePointer Output %v4uchar
+         %21 = OpTypeFunction %void
+%_ptr_Input_v4float = OpTypePointer Input %v4float
+          %2 = OpVariable %_ptr_Input_v4float Input
+          %3 = OpVariable %_ptr_Input_v4float Input
+%_ptr_Input_v4uint = OpTypePointer Input %v4uint
+          %4 = OpVariable %_ptr_Input_v4uint Input
+          %5 = OpVariable %_ptr_Output_v4uchar Output
+    %uchar_0 = OpConstant %uchar 0
+    %uchar_1 = OpConstant %uchar 1
+      %false = OpConstantFalse %bool
+    %float_4 = OpConstant %float 4
+    %float_5 = OpConstant %float 5
+     %v4bool = OpTypeVector %bool 4
+         %81 = OpConstantComposite %v4float %float_4 %float_4 %float_4 %float_4
+         %89 = OpConstantComposite %v4float %float_5 %float_5 %float_5 %float_5
+         %97 = OpConstantComposite %v4bool %false %false %false %false
+        %105 = OpConstantComposite %v4uchar %uchar_1 %uchar_1 %uchar_1 %uchar_1
+        %107 = OpConstantComposite %v4uchar %uchar_0 %uchar_0 %uchar_0 %uchar_0
+          %1 = OpFunction %void None %21
+         %29 = OpLabel
+         %30 = OpLoad %v4float %2
+         %75 = OpFOrdGreaterThan %v4bool %30 %81
+         %83 = OpFOrdGreaterThanEqual %v4bool %30 %89
+         %91 = OpSelect %v4bool %75 %83 %97
+         %99 = OpSelect %v4uchar %91 %105 %107
+               OpStore %5 %99
+               OpReturn
+               OpFunctionEnd

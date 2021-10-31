@@ -1,0 +1,43 @@
+; SPIR-V
+; Version: 1.0
+; Generator: Google rspirv; 0
+; Bound: 199
+; Schema: 0
+               OpCapability Shader
+               OpMemoryModel Logical Simple
+               OpEntryPoint Fragment %1 "main" %2 %3 %4 %5
+               OpExecutionMode %1 OriginUpperLeft
+               OpDecorate %2 Location 0
+               OpDecorate %3 Location 1
+               OpDecorate %4 Location 2
+               OpDecorate %5 Location 0
+        %int = OpTypeInt 32 1
+      %float = OpTypeFloat 32
+    %v4float = OpTypeVector %float 4
+       %uint = OpTypeInt 32 0
+     %v4uint = OpTypeVector %uint 4
+%_ptr_Input_v4uint = OpTypePointer Input %v4uint
+%_ptr_Input_v4float = OpTypePointer Input %v4float
+%_ptr_Output_v4float = OpTypePointer Output %v4float
+       %void = OpTypeVoid
+         %22 = OpTypeFunction %void
+          %2 = OpVariable %_ptr_Input_v4uint Input
+          %3 = OpVariable %_ptr_Input_v4float Input
+          %4 = OpVariable %_ptr_Input_v4uint Input
+          %5 = OpVariable %_ptr_Output_v4float Output
+    %uint_11 = OpConstant %uint 11
+        %186 = OpConstantComposite %v4uint %uint_11 %uint_11 %uint_11 %uint_11
+      %v4int = OpTypeVector %int 4
+          %1 = OpFunction %void None %22
+         %31 = OpLabel
+         %32 = OpLoad %v4uint %2
+         %33 = OpLoad %v4float %3
+         %34 = OpLoad %v4uint %4
+        %174 = OpISub %v4uint %32 %34
+        %180 = OpIMul %v4uint %186 %174
+        %188 = OpBitcast %v4int %180
+        %194 = OpConvertSToF %v4float %188
+        %172 = OpFMul %v4float %194 %33
+               OpStore %5 %172
+               OpReturn
+               OpFunctionEnd
