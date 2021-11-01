@@ -184,7 +184,78 @@ pub fn unused_assignment_pruning_pass(module: &mut Module) -> bool {
         !remove
     });
 
-    !unused.is_empty() || removed_debug_name_or_annotation
+    let removed_unused_function_param = removed_unused_function_params(module, &unused);
+
+    !unused.is_empty() || removed_debug_name_or_annotation || removed_unused_function_param
+}
+
+// `unused` can contain function params. We can't just remove these though except changing the
+// corresponding `OpTypeFunction` and `OpFunctionCall`s.
+fn removed_unused_function_params(module: &mut Module, unused: &HashSet<&Word>) -> bool {
+    fn remove_sorted_indices_with_offset<T>(
+        vec: &mut Vec<T>,
+        sorted_indices: &[usize],
+        offset: usize,
+    ) {
+        for i in sorted_indices.iter().rev() {
+            vec.remove(*i + offset);
+        }
+    }
+
+    let mut function_params_to_remove = HashMap::new();
+
+    for function in &mut module.functions {
+        let mut params_to_remove = Vec::new();
+
+        let function_type_id = match function.def.as_ref().map(|inst| &inst.operands[1]) {
+            Some(Operand::IdRef(id)) => *id,
+            _ => continue,
+        };
+
+        let function_id = match function.def.as_ref().and_then(|inst| inst.result_id) {
+            Some(id) => id,
+            _ => continue,
+        };
+
+        for (i, instruction) in function.parameters.iter().enumerate() {
+            if let Some(result_id) = instruction.result_id {
+                if unused.contains(&result_id) {
+                    params_to_remove.push(i);
+                }
+            }
+        }
+
+        if !params_to_remove.is_empty() {
+            remove_sorted_indices_with_offset(&mut function.parameters, &params_to_remove, 0);
+
+            function_params_to_remove.insert(function_type_id, params_to_remove.clone());
+            function_params_to_remove.insert(function_id, params_to_remove);
+        }
+    }
+
+    for instruction in module.all_inst_iter_mut() {
+        if instruction.class.opcode == Op::TypeFunction {
+            let function_type_id = match instruction.result_id {
+                Some(id) => id,
+                _ => continue,
+            };
+
+            if let Some(to_remove) = function_params_to_remove.get(&function_type_id) {
+                remove_sorted_indices_with_offset(&mut instruction.operands, to_remove, 1);
+            }
+        } else if instruction.class.opcode == Op::FunctionCall {
+            let function_id = match &instruction.operands[0] {
+                Operand::IdRef(id) => id,
+                _ => continue,
+            };
+
+            if let Some(to_remove) = function_params_to_remove.get(&function_id) {
+                remove_sorted_indices_with_offset(&mut instruction.operands, to_remove, 1);
+            }
+        }
+    }
+
+    !function_params_to_remove.is_empty()
 }
 
 #[derive(Debug, Copy, Clone, PartialEq)]
