@@ -82,6 +82,15 @@ pub fn unused_assignment_pruning_pass(module: &mut Module) -> bool {
             );
         }
 
+        for instruction in &function.parameters {
+            handle_instruction(
+                &mut referenced_ids,
+                &mut result_ids,
+                instruction,
+                glsl_ext_inst_id,
+            );
+        }
+
         for block in &function.blocks {
             for instruction in &block.instructions {
                 handle_instruction(
@@ -127,6 +136,18 @@ pub fn unused_assignment_pruning_pass(module: &mut Module) -> bool {
 
     let mut removed_debug_name_or_annotation = false;
 
+    module.functions.retain(|function| match &function.def {
+        Some(instruction) => match instruction.result_id {
+            Some(id) => !unused.contains(&id),
+            None => true,
+        },
+        None => true,
+    });
+
+    // Keep debug names only if the id of the debug name is not known.
+    // This is a little different from the rest of the `retain`s where we use `unused`.
+    // That's because we don't treat debug names as a 'source' of referenced ids in the first place
+    // so the id doesn't show up as being unused.
     module.debug_names.retain(|instruction| {
         let mut has_id_operands = false;
         let mut all_id_operands_are_unused = true;
@@ -134,7 +155,7 @@ pub fn unused_assignment_pruning_pass(module: &mut Module) -> bool {
         for operand in &instruction.operands {
             if let Operand::IdRef(id) = operand {
                 has_id_operands = true;
-                all_id_operands_are_unused &= unused.contains(id);
+                all_id_operands_are_unused &= !result_ids.contains(id);
             }
         }
 

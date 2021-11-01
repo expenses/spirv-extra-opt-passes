@@ -1,4 +1,6 @@
-use crate::{all_items_equal, all_items_equal_filter, get_id_ref, CompositeExtractInfo, VectorInfo};
+use crate::{
+    all_items_equal, all_items_equal_filter, get_id_ref, CompositeExtractInfo, VectorInfo,
+};
 use num_traits::cast::FromPrimitive;
 use rspirv::dr::{Instruction, Operand};
 use rspirv::spirv::{GLOp, Op, Word};

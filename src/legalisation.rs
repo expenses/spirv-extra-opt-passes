@@ -1,12 +1,12 @@
+use crate::{get_glsl_ext_inst_id, get_id_ref};
+use num_traits::FromPrimitive;
 use rspirv::dr::{Instruction, Module, Operand};
-use rspirv::spirv::{Op, GLOp, Word};
+use rspirv::spirv::{GLOp, Op, Word};
 use std::collections::{
     hash_map::Entry,
     HashMap,
     //HashSet
 };
-use num_traits::FromPrimitive;
-use crate::{get_glsl_ext_inst_id, get_id_ref};
 
 /// Deduplicate all OpTypeVectors. A SPIR-V module is not valid if multiple OpTypeVectors
 /// are specified with the same scalar type and dimensions.
@@ -49,7 +49,10 @@ pub fn dedup_vector_types_pass(module: &mut Module) {
 
 // Some glsl extension functions take scalars even when returning vectors, so we need to make sure we don't switch them to taking vectors
 // in the `fix_non_vector_constant_operand` pass. This function returns the index of the scalar operand if the instruction takes one.
-fn is_glsl_function_that_takes_scalar(instruction: &Instruction, glsl_ext_inst_id: Option<Word>) -> Option<usize> {
+fn is_glsl_function_that_takes_scalar(
+    instruction: &Instruction,
+    glsl_ext_inst_id: Option<Word>,
+) -> Option<usize> {
     let glsl_ext_inst_id = glsl_ext_inst_id?;
 
     if instruction.class.opcode != Op::ExtInst {
@@ -59,12 +62,12 @@ fn is_glsl_function_that_takes_scalar(instruction: &Instruction, glsl_ext_inst_i
     let ext_inst_id = get_id_ref(&instruction.operands[0])?;
 
     if ext_inst_id != glsl_ext_inst_id {
-        return None
+        return None;
     }
 
     let gl_op = match &instruction.operands[1] {
         Operand::LiteralExtInstInteger(int) => GLOp::from_u32(*int)?,
-        _ => return None
+        _ => return None,
     };
 
     if gl_op == GLOp::Refract {
@@ -173,7 +176,8 @@ pub fn fix_non_vector_constant_operand(module: &mut Module) {
                     _ => continue,
                 }
 
-                let scalar_operand_index = is_glsl_function_that_takes_scalar(instruction, glsl_ext_inst_id);
+                let scalar_operand_index =
+                    is_glsl_function_that_takes_scalar(instruction, glsl_ext_inst_id);
 
                 if let Some(dimensions) = vector_types.get(&result_type).cloned() {
                     for (i, operand) in instruction.operands.iter_mut().enumerate() {
