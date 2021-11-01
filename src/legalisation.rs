@@ -2,11 +2,7 @@ use crate::{get_glsl_ext_inst_id, get_id_ref};
 use num_traits::FromPrimitive;
 use rspirv::dr::{Instruction, Module, Operand};
 use rspirv::spirv::{GLOp, Op, Word};
-use std::collections::{
-    hash_map::Entry,
-    HashMap,
-    //HashSet
-};
+use std::collections::{hash_map::Entry, HashMap, HashSet};
 
 /// Deduplicate all OpTypeVectors. A SPIR-V module is not valid if multiple OpTypeVectors
 /// are specified with the same scalar type and dimensions.
@@ -89,6 +85,17 @@ fn is_glsl_function_that_takes_scalar(
     instruction: &Instruction,
     glsl_ext_inst_id: Option<Word>,
 ) -> Option<usize> {
+    if gl_op_for_instruction(instruction, glsl_ext_inst_id)? == GLOp::Refract {
+        Some(4)
+    } else {
+        None
+    }
+}
+
+fn gl_op_for_instruction(
+    instruction: &Instruction,
+    glsl_ext_inst_id: Option<Word>,
+) -> Option<GLOp> {
     let glsl_ext_inst_id = glsl_ext_inst_id?;
 
     if instruction.class.opcode != Op::ExtInst {
@@ -101,15 +108,9 @@ fn is_glsl_function_that_takes_scalar(
         return None;
     }
 
-    let gl_op = match &instruction.operands[1] {
-        Operand::LiteralExtInstInteger(int) => GLOp::from_u32(*int)?,
-        _ => return None,
-    };
-
-    if gl_op == GLOp::Refract {
-        Some(4)
-    } else {
-        None
+    match &instruction.operands[1] {
+        Operand::LiteralExtInstInteger(int) => GLOp::from_u32(*int),
+        _ => None,
     }
 }
 
@@ -137,18 +138,16 @@ pub fn fix_non_vector_constant_operand(module: &mut Module) {
         })
         .collect::<HashMap<_, _>>();
 
-    /*
-    let scalar_types = module.types_global_values.iter()
-        .filter_map(|instruction| {
-            match instruction.class.opcode {
-                Op::TypeBool | Op::TypeInt | Op::TypeFloat => instruction.result_id,
-                _ => None
-            }
+    let scalar_types = module
+        .types_global_values
+        .iter()
+        .filter_map(|instruction| match instruction.class.opcode {
+            Op::TypeBool | Op::TypeInt | Op::TypeFloat => instruction.result_id,
+            _ => None,
         })
         .collect::<HashSet<_>>();
 
     let mut id_to_result_scalar_type = HashMap::new();
-    */
 
     let vector_types = module
         .types_global_values
@@ -171,6 +170,8 @@ pub fn fix_non_vector_constant_operand(module: &mut Module) {
 
     let glsl_ext_inst_id = get_glsl_ext_inst_id(module);
 
+    let mut instructions_to_insert = HashMap::new();
+
     for function in &mut module.functions {
         for block in &mut function.blocks {
             for instruction in &mut block.instructions {
@@ -179,13 +180,11 @@ pub fn fix_non_vector_constant_operand(module: &mut Module) {
                     _ => continue,
                 };
 
-                /*
                 if let Some(result_id) = instruction.result_id {
                     if scalar_types.contains(&result_type) {
                         id_to_result_scalar_type.insert(result_id, result_type);
                     }
                 }
-                */
 
                 match instruction.class.opcode {
                     Op::IEqual
@@ -212,6 +211,11 @@ pub fn fix_non_vector_constant_operand(module: &mut Module) {
                     _ => continue,
                 }
 
+                let result_id = match instruction.result_id {
+                    Some(result_id) => result_id,
+                    _ => continue,
+                };
+
                 let scalar_operand_index =
                     is_glsl_function_that_takes_scalar(instruction, glsl_ext_inst_id);
 
@@ -226,6 +230,7 @@ pub fn fix_non_vector_constant_operand(module: &mut Module) {
                             continue;
                         }
 
+                        // If the argument-that-should-be-a-vector is a constant, make a global OpConstantComposite.
                         if let Some(constant_type) = constants.get(id).cloned() {
                             let type_vector_id = next_id;
                             module.types_global_values.push(Instruction::new(
@@ -248,11 +253,54 @@ pub fn fix_non_vector_constant_operand(module: &mut Module) {
                             next_id += 1;
 
                             *operand = Operand::IdRef(constant_composite_id);
-                        } else {
-                            // todo: might need to handle this case.
-                            // if let Some(scalar_type) = id_to_result_scalar_type.get(id) {}
+                        // If the argument-that-should-be-a-vector isn't constant, we need to insert a
+                        // OpCompositeConstruct.
+                        } else if let Some(scalar_type) = id_to_result_scalar_type.get(id) {
+                            // Insert a new vector type.
+                            let type_vector_id = next_id;
+                            module.types_global_values.push(Instruction::new(
+                                Op::TypeVector,
+                                None,
+                                Some(type_vector_id),
+                                vec![
+                                    Operand::IdRef(*scalar_type),
+                                    Operand::LiteralInt32(dimensions),
+                                ],
+                            ));
+                            next_id += 1;
+
+                            let composte_construct_id = next_id;
+
+                            instructions_to_insert.insert(
+                                result_id,
+                                Instruction::new(
+                                    Op::CompositeConstruct,
+                                    Some(type_vector_id),
+                                    Some(composte_construct_id),
+                                    vec![Operand::IdRef(*id); dimensions as usize],
+                                ),
+                            );
+                            next_id += 1;
+
+                            *operand = Operand::IdRef(composte_construct_id);
                         }
                     }
+                }
+            }
+        }
+    }
+
+    'outer: for (id_to_insert_at, instruction_to_insert) in instructions_to_insert.drain() {
+        for function in &mut module.functions {
+            for block in &mut function.blocks {
+                let position = block
+                    .instructions
+                    .iter()
+                    .position(|inst| inst.result_id == Some(id_to_insert_at));
+
+                if let Some(position) = position {
+                    block.instructions.insert(position, instruction_to_insert);
+                    continue 'outer;
                 }
             }
         }

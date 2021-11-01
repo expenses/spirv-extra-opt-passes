@@ -114,7 +114,13 @@ pub(crate) fn get_operands(
             _ => return None,
         };
 
-        // todo: it's possible that some scalar glsl ops can't be vectorised. More testing is needed.
+        match gl_op {
+            // The length of a scalar is just abs(scalar). The distance between two scalars is just abs(a - b).
+            // Why SPIR-V allows this I have no idea.
+            GLOp::Distance | GLOp::Length => return None,
+            // It's possible that a few more scalar glsl ops can't be vectorised.
+            _ => {}
+        }
 
         return Some(vec![
             Operand::IdRef(glsl_ext_inst_id),

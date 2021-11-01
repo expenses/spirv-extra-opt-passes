@@ -188,6 +188,9 @@ pub fn unused_assignment_pruning_pass(module: &mut Module) -> bool {
 
     let removed_unused_function_param = removed_unused_function_params(module, &unused);
 
+    // todo: it's too easy to get stuck in endless loops where `unused` contains and id but
+    // the instruction isn't removed for some reason. `modified` should be based on whether
+    // anything is removed in the `retain` calls instead.
     !unused.is_empty() || removed_debug_name_or_annotation || removed_unused_function_param
 }
 
@@ -214,7 +217,7 @@ fn removed_unused_function_params(module: &mut Module, unused: &HashSet<&Word>) 
             Some(inst) => match (inst.result_id, inst.result_type) {
                 (Some(result_id), Some(result_type)) => (result_id, result_type),
                 _ => continue,
-            }
+            },
             _ => continue,
         };
 
@@ -233,18 +236,23 @@ fn removed_unused_function_params(module: &mut Module, unused: &HashSet<&Word>) 
 
             let function_type_id = next_id;
 
-            // Push a new OpTypeFunction with the new operands and set it as the type for the function. 
+            // Push a new OpTypeFunction with the new operands and set it as the type for the function.
             module.types_global_values.push(Instruction::new(
                 Op::TypeFunction,
                 None,
                 Some(function_type_id),
                 {
-                    std::iter::once(Operand::IdRef(function_return_ty)).chain(
-                        function.parameters.iter().map(|inst| match inst.result_type {
-                            Some(id) => Operand::IdRef(id),
-                            None => unreachable!(),
-                        })
-                    ).collect::<Vec<_>>()
+                    std::iter::once(Operand::IdRef(function_return_ty))
+                        .chain(
+                            function
+                                .parameters
+                                .iter()
+                                .map(|inst| match inst.result_type {
+                                    Some(id) => Operand::IdRef(id),
+                                    None => unreachable!(),
+                                }),
+                        )
+                        .collect::<Vec<_>>()
                 },
             ));
             next_id += 1;
@@ -569,6 +577,14 @@ fn vectorise(
         // the id and leave it to be pruned.
         if opcode == Op::CompositeConstruct {
             if same_instruction.operands.len() != extracted_component_ids.len() {
+                return None;
+            }
+
+            let composite_type = scalar_type;
+
+            // If the composite isn't the same type as the vector being deconstructed (it could be a struct with the same fields)
+            // then we can't do anything.
+            if vector_info.ty.id != composite_type {
                 return None;
             }
 
