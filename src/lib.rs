@@ -49,6 +49,11 @@ pub fn unused_assignment_pruning_pass(module: &mut Module) -> bool {
             referenced_ids.insert(*result_type);
         }
 
+        // Function calls have side effects so we don't prune them even if the return type isn't used (which is common).
+        if instruction.class.opcode == Op::FunctionCall {
+            return;
+        }
+
         if is_unknown_extension_instruction(instruction, glsl_ext_inst_id) {
             return;
         }
@@ -740,4 +745,11 @@ fn all_items_equal_filter<T: PartialEq>(
     }
 
     Some(first_item)
+}
+
+fn get_id_ref(operand: &Operand) -> Option<Word> {
+    match operand {
+        Operand::IdRef(id) => Some(*id),
+        _ => None,
+    }
 }

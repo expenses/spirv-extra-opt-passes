@@ -1,15 +1,8 @@
-use crate::{all_items_equal, all_items_equal_filter, CompositeExtractInfo, VectorInfo};
+use crate::{all_items_equal, all_items_equal_filter, get_id_ref, CompositeExtractInfo, VectorInfo};
 use num_traits::cast::FromPrimitive;
 use rspirv::dr::{Instruction, Operand};
 use rspirv::spirv::{GLOp, Op, Word};
 use std::collections::HashMap;
-
-fn get_id_ref(operand: &Operand) -> Option<Word> {
-    match operand {
-        Operand::IdRef(id) => Some(*id),
-        _ => None,
-    }
-}
 
 fn shared_vector_operand_at_index(
     vector_info: &VectorInfo,
@@ -136,7 +129,7 @@ pub(crate) fn get_operands(
             follow_up_instructions,
             composite_extract_info,
         )
-        .map(|id| Operand::IdRef(id))
+        .map(Operand::IdRef)
         .or_else(|| {
             all_items_equal(follow_up_instructions.iter().map(|inst| &inst.operands[1])).cloned()
         })?;
@@ -147,7 +140,7 @@ pub(crate) fn get_operands(
             follow_up_instructions,
             composite_extract_info,
         )
-        .map(|id| Operand::IdRef(id))
+        .map(Operand::IdRef)
         .or_else(|| {
             all_items_equal(follow_up_instructions.iter().map(|inst| &inst.operands[2])).cloned()
         })?;

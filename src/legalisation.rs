@@ -1,10 +1,12 @@
 use rspirv::dr::{Instruction, Module, Operand};
-use rspirv::spirv::Op;
+use rspirv::spirv::{Op, GLOp, Word};
 use std::collections::{
     hash_map::Entry,
     HashMap,
     //HashSet
 };
+use num_traits::FromPrimitive;
+use crate::{get_glsl_ext_inst_id, get_id_ref};
 
 /// Deduplicate all OpTypeVectors. A SPIR-V module is not valid if multiple OpTypeVectors
 /// are specified with the same scalar type and dimensions.
@@ -43,6 +45,33 @@ pub fn dedup_vector_types_pass(module: &mut Module) {
     }
 
     crate::replace_globals(module, &replacements)
+}
+
+// Some glsl extension functions take scalars even when returning vectors, so we need to make sure we don't switch them to taking vectors
+// in the `fix_non_vector_constant_operand` pass. This function returns the index of the scalar operand if the instruction takes one.
+fn is_glsl_function_that_takes_scalar(instruction: &Instruction, glsl_ext_inst_id: Option<Word>) -> Option<usize> {
+    let glsl_ext_inst_id = glsl_ext_inst_id?;
+
+    if instruction.class.opcode != Op::ExtInst {
+        return None;
+    }
+
+    let ext_inst_id = get_id_ref(&instruction.operands[0])?;
+
+    if ext_inst_id != glsl_ext_inst_id {
+        return None
+    }
+
+    let gl_op = match &instruction.operands[1] {
+        Operand::LiteralExtInstInteger(int) => GLOp::from_u32(*int)?,
+        _ => return None
+    };
+
+    if gl_op == GLOp::Refract {
+        Some(4)
+    } else {
+        None
+    }
 }
 
 /// Change the operands for specific functions that return vectors from constant scalars to constant vectors.
@@ -101,6 +130,8 @@ pub fn fix_non_vector_constant_operand(module: &mut Module) {
 
     let mut next_id = module.header.as_ref().unwrap().bound;
 
+    let glsl_ext_inst_id = get_glsl_ext_inst_id(module);
+
     for function in &mut module.functions {
         for block in &mut function.blocks {
             for instruction in &mut block.instructions {
@@ -142,12 +173,18 @@ pub fn fix_non_vector_constant_operand(module: &mut Module) {
                     _ => continue,
                 }
 
+                let scalar_operand_index = is_glsl_function_that_takes_scalar(instruction, glsl_ext_inst_id);
+
                 if let Some(dimensions) = vector_types.get(&result_type).cloned() {
-                    for operand in &mut instruction.operands {
+                    for (i, operand) in instruction.operands.iter_mut().enumerate() {
                         let id = match operand {
                             Operand::IdRef(id) => id,
                             _ => continue,
                         };
+
+                        if scalar_operand_index == Some(i) {
+                            continue;
+                        }
 
                         if let Some(constant_type) = constants.get(id).cloned() {
                             let type_vector_id = next_id;
