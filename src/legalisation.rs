@@ -170,7 +170,7 @@ pub fn fix_non_vector_constant_operand(module: &mut Module) {
 
     let glsl_ext_inst_id = get_glsl_ext_inst_id(module);
 
-    let mut instructions_to_insert = HashMap::new();
+    let mut instructions_to_insert = Vec::new();
 
     for function in &mut module.functions {
         for block in &mut function.blocks {
@@ -271,7 +271,7 @@ pub fn fix_non_vector_constant_operand(module: &mut Module) {
 
                             let composte_construct_id = next_id;
 
-                            instructions_to_insert.insert(
+                            instructions_to_insert.push((
                                 result_id,
                                 Instruction::new(
                                     Op::CompositeConstruct,
@@ -279,7 +279,7 @@ pub fn fix_non_vector_constant_operand(module: &mut Module) {
                                     Some(composte_construct_id),
                                     vec![Operand::IdRef(*id); dimensions as usize],
                                 ),
-                            );
+                            ));
                             next_id += 1;
 
                             *operand = Operand::IdRef(composte_construct_id);
@@ -290,7 +290,16 @@ pub fn fix_non_vector_constant_operand(module: &mut Module) {
         }
     }
 
-    'outer: for (id_to_insert_at, instruction_to_insert) in instructions_to_insert.drain() {
+    insert_instructions(module, &instructions_to_insert);
+
+    module.header.as_mut().unwrap().bound = next_id;
+}
+
+fn insert_instructions(module: &mut Module, to_insert: &[(Word, Instruction)]) {
+    'outer: for (id_to_insert_at, instruction_to_insert) in to_insert {
+        let id_to_insert_at = *id_to_insert_at;
+        let instruction_to_insert = instruction_to_insert.clone();
+
         for function in &mut module.functions {
             for block in &mut function.blocks {
                 let position = block
@@ -305,6 +314,4 @@ pub fn fix_non_vector_constant_operand(module: &mut Module) {
             }
         }
     }
-
-    module.header.as_mut().unwrap().bound = next_id;
 }

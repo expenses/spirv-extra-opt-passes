@@ -118,32 +118,46 @@ pub fn unused_assignment_pruning_pass(module: &mut Module) -> bool {
         .difference(&referenced_ids)
         .collect::<HashSet<_>>();
 
-    module
-        .types_global_values
-        .retain(|instruction| match instruction.result_id {
-            Some(result_ty) => !unused.contains(&result_ty),
-            _ => true,
-        });
+    let mut removed_instruction = false;
+
+    module.types_global_values.retain(|instruction| {
+        let remove = match instruction.result_id {
+            Some(result_ty) => unused.contains(&result_ty),
+            _ => false,
+        };
+
+        removed_instruction |= remove;
+
+        !remove
+    });
 
     for function in &mut module.functions {
         for block in &mut function.blocks {
-            block
-                .instructions
-                .retain(|instruction| match instruction.result_id {
-                    Some(result_ty) => !unused.contains(&result_ty),
-                    _ => true,
-                });
+            block.instructions.retain(|instruction| {
+                let remove = match instruction.result_id {
+                    Some(result_ty) => unused.contains(&result_ty),
+                    _ => false,
+                };
+
+                removed_instruction |= remove;
+
+                !remove
+            });
         }
     }
 
-    let mut removed_debug_name_or_annotation = false;
+    module.functions.retain(|function| {
+        let remove = match &function.def {
+            Some(instruction) => match instruction.result_id {
+                Some(id) => unused.contains(&id),
+                None => false,
+            },
+            None => false,
+        };
 
-    module.functions.retain(|function| match &function.def {
-        Some(instruction) => match instruction.result_id {
-            Some(id) => !unused.contains(&id),
-            None => true,
-        },
-        None => true,
+        removed_instruction |= remove;
+
+        !remove
     });
 
     // Keep debug names only if the id of the debug name is not known.
@@ -163,7 +177,7 @@ pub fn unused_assignment_pruning_pass(module: &mut Module) -> bool {
 
         let remove = has_id_operands && all_id_operands_are_unused;
 
-        removed_debug_name_or_annotation |= remove;
+        removed_instruction |= remove;
 
         !remove
     });
@@ -181,17 +195,14 @@ pub fn unused_assignment_pruning_pass(module: &mut Module) -> bool {
 
         let remove = has_id_operands && all_id_operands_are_unused;
 
-        removed_debug_name_or_annotation |= remove;
+        removed_instruction |= remove;
 
         !remove
     });
 
     let removed_unused_function_param = removed_unused_function_params(module, &unused);
 
-    // todo: it's too easy to get stuck in endless loops where `unused` contains and id but
-    // the instruction isn't removed for some reason. `modified` should be based on whether
-    // anything is removed in the `retain` calls instead.
-    !unused.is_empty() || removed_debug_name_or_annotation || removed_unused_function_param
+    removed_instruction || removed_unused_function_param
 }
 
 // `unused` can contain function params. We can't just remove these though without changing the
