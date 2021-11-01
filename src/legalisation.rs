@@ -120,7 +120,7 @@ fn gl_op_for_instruction(
 ///
 /// This needs to happen after the vectorisation pass as passing in scalar operands to certain vector functions it not allowed.
 ///
-/// This might result in multiple OpVector types with the same scalar type and dimensions, so the `dedup_vector_types` pass should be ran after this.
+/// This might result in multiple OpVector types with the same scalar type and dimensions, so the `dedup_vector_types` pass is ran after this.
 pub fn fix_non_vector_operands_pass(module: &mut Module) {
     let constants = module
         .types_global_values
@@ -297,6 +297,8 @@ pub fn fix_non_vector_operands_pass(module: &mut Module) {
     insert_instructions(module, &instructions_to_insert);
 
     module.header.as_mut().unwrap().bound = next_id;
+
+    dedup_vector_types_pass(module);
 }
 
 fn insert_instructions(module: &mut Module, to_insert: &[(Word, Instruction)]) {

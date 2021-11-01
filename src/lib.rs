@@ -6,7 +6,7 @@ pub mod legalisation;
 mod vectorisation_operands;
 
 use legalisation::{
-    dedup_type_functions_pass, dedup_vector_types_pass, fix_non_vector_operands_pass,
+    dedup_type_functions_pass, fix_non_vector_operands_pass,
 };
 use vectorisation_operands::get_operands;
 
@@ -553,7 +553,6 @@ pub fn vectorisation_pass(module: &mut Module) -> bool {
 
     if changed {
         fix_non_vector_operands_pass(module);
-        dedup_vector_types_pass(module);
         unused_assignment_pruning_pass(module);
     }
 
