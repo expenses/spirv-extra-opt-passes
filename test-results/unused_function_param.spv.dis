@@ -1,7 +1,7 @@
 ; SPIR-V
 ; Version: 1.0
 ; Generator: Google rspirv; 0
-; Bound: 958
+; Bound: 959
 ; Schema: 0
                OpCapability Shader
           %1 = OpExtInstImport "GLSL.std.450"
@@ -223,7 +223,6 @@
          %48 = OpTypeFunction %float %_ptr_Function_v3float %_ptr_Function_v3float
          %53 = OpTypeFunction %float %_ptr_Function_v3float %_ptr_Function_v3float %_ptr_Function_v3float
          %59 = OpTypeFunction %v3float %_ptr_Function_float
-         %63 = OpTypeFunction %v3float %_ptr_Function_v3float %_ptr_Function_v3float %_ptr_Function_float
          %70 = OpTypeFunction %v3float %_ptr_Function_v3float %_ptr_Function_v3float %_ptr_Function_v2float
 %_ptr_Function_v4float = OpTypePointer Function %v4float
          %77 = OpTypeFunction %void %_ptr_Function_v4float %_ptr_Function_v2float
@@ -324,6 +323,7 @@
  %_fragColor = OpVariable %_ptr_Output_v4float Output
 %_ptr_Input_v2float = OpTypePointer Input %v2float
  %_fragCoord = OpVariable %_ptr_Input_v2float Input
+        %958 = OpTypeFunction %v3float %_ptr_Function_v3float %_ptr_Function_v3float %_ptr_Function_float
        %main = OpFunction %void None %3
           %5 = OpLabel
    %param_46 = OpVariable %_ptr_Function_v4float Function
@@ -1046,7 +1046,7 @@
         %677 = OpLoad %v3float %mate_0
                OpReturnValue %677
                OpFunctionEnd
-%render_vf3_vf3_vf2_f1_ = OpFunction %v3float None %63
+%render_vf3_vf3_vf2_f1_ = OpFunction %v3float None %958
        %ro_2 = OpFunctionParameter %_ptr_Function_v3float
        %rd_1 = OpFunctionParameter %_ptr_Function_v3float
        %isVr = OpFunctionParameter %_ptr_Function_float

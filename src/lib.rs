@@ -5,7 +5,9 @@ use std::collections::{hash_map::Entry, HashMap, HashSet};
 pub mod legalisation;
 mod vectorisation_operands;
 
-use legalisation::{dedup_vector_types_pass, fix_non_vector_constant_operand};
+use legalisation::{
+    dedup_type_functions, dedup_vector_types_pass, fix_non_vector_constant_operand,
+};
 use vectorisation_operands::get_operands;
 
 pub fn unused_assignment_pruning_pass(module: &mut Module) -> bool {
@@ -189,7 +191,7 @@ pub fn unused_assignment_pruning_pass(module: &mut Module) -> bool {
     !unused.is_empty() || removed_debug_name_or_annotation || removed_unused_function_param
 }
 
-// `unused` can contain function params. We can't just remove these though except changing the
+// `unused` can contain function params. We can't just remove these though without changing the
 // corresponding `OpTypeFunction` and `OpFunctionCall`s.
 fn removed_unused_function_params(module: &mut Module, unused: &HashSet<&Word>) -> bool {
     fn remove_sorted_indices_with_offset<T>(
@@ -203,17 +205,16 @@ fn removed_unused_function_params(module: &mut Module, unused: &HashSet<&Word>) 
     }
 
     let mut function_params_to_remove = HashMap::new();
+    let mut next_id = module.header.as_ref().unwrap().bound;
 
     for function in &mut module.functions {
         let mut params_to_remove = Vec::new();
 
-        let function_type_id = match function.def.as_ref().map(|inst| &inst.operands[1]) {
-            Some(Operand::IdRef(id)) => *id,
-            _ => continue,
-        };
-
-        let function_id = match function.def.as_ref().and_then(|inst| inst.result_id) {
-            Some(id) => id,
+        let (function_id, function_return_ty) = match &function.def {
+            Some(inst) => match (inst.result_id, inst.result_type) {
+                (Some(result_id), Some(result_type)) => (result_id, result_type),
+                _ => continue,
+            }
             _ => continue,
         };
 
@@ -228,34 +229,57 @@ fn removed_unused_function_params(module: &mut Module, unused: &HashSet<&Word>) 
         if !params_to_remove.is_empty() {
             remove_sorted_indices_with_offset(&mut function.parameters, &params_to_remove, 0);
 
-            function_params_to_remove.insert(function_type_id, params_to_remove.clone());
             function_params_to_remove.insert(function_id, params_to_remove);
+
+            let function_type_id = next_id;
+
+            // Push a new OpTypeFunction with the new operands and set it as the type for the function. 
+            module.types_global_values.push(Instruction::new(
+                Op::TypeFunction,
+                None,
+                Some(function_type_id),
+                {
+                    std::iter::once(Operand::IdRef(function_return_ty)).chain(
+                        function.parameters.iter().map(|inst| match inst.result_type {
+                            Some(id) => Operand::IdRef(id),
+                            None => unreachable!(),
+                        })
+                    ).collect::<Vec<_>>()
+                },
+            ));
+            next_id += 1;
+
+            if let Some(inst) = &mut function.def {
+                inst.operands[1] = Operand::IdRef(function_type_id);
+            }
         }
     }
 
     for instruction in module.all_inst_iter_mut() {
-        if instruction.class.opcode == Op::TypeFunction {
-            let function_type_id = match instruction.result_id {
-                Some(id) => id,
-                _ => continue,
-            };
-
-            if let Some(to_remove) = function_params_to_remove.get(&function_type_id) {
-                remove_sorted_indices_with_offset(&mut instruction.operands, to_remove, 1);
-            }
-        } else if instruction.class.opcode == Op::FunctionCall {
+        if instruction.class.opcode == Op::FunctionCall {
             let function_id = match &instruction.operands[0] {
                 Operand::IdRef(id) => id,
                 _ => continue,
             };
 
             if let Some(to_remove) = function_params_to_remove.get(&function_id) {
+                // Remove the unused function parameters. We use an offset of 1 because the
+                // function being called is the first operand.
                 remove_sorted_indices_with_offset(&mut instruction.operands, to_remove, 1);
             }
         }
     }
 
-    !function_params_to_remove.is_empty()
+    let modified = !function_params_to_remove.is_empty();
+
+    if modified {
+        // Dedup the OpTypeFunctions as having duplicates with the same operands is not allowed.
+        dedup_type_functions(module);
+    }
+
+    module.header.as_mut().unwrap().bound = next_id;
+
+    modified
 }
 
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -770,6 +794,14 @@ fn replace_globals(module: &mut Module, replacements: &HashMap<Word, Word>) {
     }
 
     for function in &mut module.functions {
+        if let Some(def) = &mut function.def {
+            if let Operand::IdRef(function_type_id) = &mut def.operands[1] {
+                if let Some(replacement) = replacements.get(function_type_id) {
+                    *function_type_id = *replacement;
+                }
+            }
+        }
+
         for block in &mut function.blocks {
             for instruction in &mut block.instructions {
                 if let Some(result_type) = instruction.result_type.as_mut() {

@@ -47,6 +47,42 @@ pub fn dedup_vector_types_pass(module: &mut Module) {
     crate::replace_globals(module, &replacements)
 }
 
+pub fn dedup_type_functions(module: &mut Module) {
+    let mut operands_to_function_id = HashMap::new();
+    let mut replacements = HashMap::new();
+
+    for instruction in &mut module.types_global_values {
+        if instruction.class.opcode != Op::TypeFunction {
+            continue;
+        }
+
+        let result_id = match instruction.result_id {
+            Some(result_id) => result_id,
+            _ => continue,
+        };
+
+        let operands = instruction
+            .operands
+            .iter()
+            .map(|operand| match operand {
+                Operand::IdRef(id) => id,
+                _ => unreachable!(),
+            })
+            .collect::<Vec<_>>();
+
+        match operands_to_function_id.entry(operands) {
+            Entry::Occupied(matching_function) => {
+                replacements.insert(result_id, *matching_function.get());
+            }
+            Entry::Vacant(vacancy) => {
+                vacancy.insert(result_id);
+            }
+        }
+    }
+
+    crate::replace_globals(module, &replacements)
+}
+
 // Some glsl extension functions take scalars even when returning vectors, so we need to make sure we don't switch them to taking vectors
 // in the `fix_non_vector_constant_operand` pass. This function returns the index of the scalar operand if the instruction takes one.
 fn is_glsl_function_that_takes_scalar(
