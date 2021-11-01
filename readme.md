@@ -25,7 +25,7 @@ ARGS:
 
 # Passes
 
-## Vectorisation pass
+## Vectorisation Pass
 
 
 The pass I've mostly worked on is the vectorisation one. It looks for a usage pattern where all the components are extracted via `OpCompositeExtract` and then the same operation is ran on each component, e.g. `OpFMul {component} {some scalar}` or `OpFMul {component} {the matching component of a different vector}`.
@@ -70,7 +70,7 @@ When this pass is repeated, it can simplify some chains of instructions by quite
 +               OpStore %705 %1264
 ```
 
-## Unused Assignment Pruning pass
+## Unused Assignment Pruning Pass
 
 This one is a lot simpler. It collects the set of all instruction result ids, all instruction ids that are referenced as types or operands, and computes the difference between the two sets. All unused instructions are then removed.
 

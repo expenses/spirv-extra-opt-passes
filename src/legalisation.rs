@@ -4,7 +4,7 @@ use rspirv::dr::{Instruction, Module, Operand};
 use rspirv::spirv::{GLOp, Op, Word};
 use std::collections::{hash_map::Entry, HashMap, HashSet};
 
-/// Deduplicate all OpTypeVectors. A SPIR-V module is not valid if multiple OpTypeVectors
+/// Deduplicate all `OpTypeVector`s. A SPIR-V module is not valid if multiple `OpTypeVector`s
 /// are specified with the same scalar type and dimensions.
 pub fn dedup_vector_types_pass(module: &mut Module) {
     let mut ty_and_dimensions_to_vector_id = HashMap::new();
@@ -43,7 +43,9 @@ pub fn dedup_vector_types_pass(module: &mut Module) {
     crate::replace_globals(module, &replacements)
 }
 
-pub fn dedup_type_functions(module: &mut Module) {
+/// Deduplicate all `OpTypeFunction`s. A SPIR-V module is not valid if multiple `OpTypeFunction`s
+/// are specified with the same return type and parameters.
+pub fn dedup_type_functions_pass(module: &mut Module) {
     let mut operands_to_function_id = HashMap::new();
     let mut replacements = HashMap::new();
 
@@ -114,12 +116,12 @@ fn gl_op_for_instruction(
     }
 }
 
-/// Change the operands for specific functions that return vectors from constant scalars to constant vectors.
+/// Change the operands for specific functions that return vectors from scalars to vectors.
 ///
 /// This needs to happen after the vectorisation pass as passing in scalar operands to certain vector functions it not allowed.
 ///
 /// This might result in multiple OpVector types with the same scalar type and dimensions, so the `dedup_vector_types` pass should be ran after this.
-pub fn fix_non_vector_constant_operand(module: &mut Module) {
+pub fn fix_non_vector_operands_pass(module: &mut Module) {
     let constants = module
         .types_global_values
         .iter()
@@ -232,6 +234,7 @@ pub fn fix_non_vector_constant_operand(module: &mut Module) {
 
                         // If the argument-that-should-be-a-vector is a constant, make a global OpConstantComposite.
                         if let Some(constant_type) = constants.get(id).cloned() {
+                            // Insert a new vector type.
                             let type_vector_id = next_id;
                             module.types_global_values.push(Instruction::new(
                                 Op::TypeVector,
@@ -243,6 +246,7 @@ pub fn fix_non_vector_constant_operand(module: &mut Module) {
                                 ],
                             ));
                             next_id += 1;
+                            // Insert a global ConstantComposite.
                             let constant_composite_id = next_id;
                             module.types_global_values.push(Instruction::new(
                                 Op::ConstantComposite,

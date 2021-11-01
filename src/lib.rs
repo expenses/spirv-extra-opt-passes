@@ -6,10 +6,11 @@ pub mod legalisation;
 mod vectorisation_operands;
 
 use legalisation::{
-    dedup_type_functions, dedup_vector_types_pass, fix_non_vector_constant_operand,
+    dedup_type_functions_pass, dedup_vector_types_pass, fix_non_vector_operands_pass,
 };
 use vectorisation_operands::get_operands;
 
+/// See 'Unused Assignment Pruning Pass' in readme.md
 pub fn unused_assignment_pruning_pass(module: &mut Module) -> bool {
     let mut result_ids = HashSet::new();
     let mut referenced_ids = HashSet::new();
@@ -293,7 +294,7 @@ fn removed_unused_function_params(module: &mut Module, unused: &HashSet<&Word>) 
 
     if modified {
         // Dedup the OpTypeFunctions as having duplicates with the same operands is not allowed.
-        dedup_type_functions(module);
+        dedup_type_functions_pass(module);
     }
 
     module.header.as_mut().unwrap().bound = next_id;
@@ -344,6 +345,7 @@ fn get_glsl_ext_inst_id(module: &Module) -> Option<Word> {
     glsl_ext_inst_id
 }
 
+/// See 'Vectorisation Pass' in readme.md
 pub fn vectorisation_pass(module: &mut Module) -> bool {
     let mut vector_type_info = HashMap::new();
 
@@ -550,7 +552,7 @@ pub fn vectorisation_pass(module: &mut Module) -> bool {
     module.header.as_mut().unwrap().bound = next_id;
 
     if changed {
-        fix_non_vector_constant_operand(module);
+        fix_non_vector_operands_pass(module);
         dedup_vector_types_pass(module);
         unused_assignment_pruning_pass(module);
     }
