@@ -4,7 +4,7 @@ This is an set of experimental optimisation passes for SPIR-V modules. It comes 
 
 They are designed to augment the output from [`spirv-opt`](https://github.com/KhronosGroup/SPIRV-Tools), not to replace it. 
 
-A disclaimer: I _really_ wouldn't recommend using this yet. It's pretty likely that you'll end up with broken shaders. If you do use it and encounter an issue, I'd love if it you make a github issue and uploaded the module you ran it on.
+A disclaimer: It's quite possible that you'll end up with broken shaders using this. I have ran it on a large number of glsl shaders to test for valid output according to `spirv-val`, but that's not much of a guarantee. If you do use it and encounter an issue, I'd love if it you make a github issue and uploaded the module you ran it on.
 
 ```
 spirv-extra-opt 0.1.0
