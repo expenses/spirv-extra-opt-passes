@@ -5,9 +5,7 @@ use std::collections::{hash_map::Entry, HashMap, HashSet};
 pub mod legalisation;
 mod vectorisation_operands;
 
-use legalisation::{
-    dedup_type_functions_pass, fix_non_vector_operands_pass,
-};
+use legalisation::{dedup_type_functions_pass, fix_non_vector_operands_pass};
 use vectorisation_operands::get_operands;
 
 /// See 'Unused Assignment Pruning Pass' in readme.md
@@ -94,15 +92,13 @@ pub fn unused_assignment_pruning_pass(module: &mut Module) -> bool {
             );
         }
 
-        for block in &function.blocks {
-            for instruction in &block.instructions {
-                handle_instruction(
-                    &mut referenced_ids,
-                    &mut result_ids,
-                    instruction,
-                    glsl_ext_inst_id,
-                );
-            }
+        for instruction in function.all_inst_iter() {
+            handle_instruction(
+                &mut referenced_ids,
+                &mut result_ids,
+                instruction,
+                glsl_ext_inst_id,
+            );
         }
     }
 
@@ -529,23 +525,17 @@ pub fn vectorisation_pass(module: &mut Module) -> bool {
     }
 
     for function in &mut module.functions {
-        for block in &mut function.blocks {
-            for instruction in &mut block.instructions {
-                for operand in &mut instruction.operands {
-                    let id = match operand {
-                        Operand::IdRef(id) => id,
-                        _ => continue,
-                    };
+        for instruction in function.all_inst_iter_mut() {
+            for operand in &mut instruction.operands {
+                let id = match operand {
+                    Operand::IdRef(id) => id,
+                    _ => continue,
+                };
 
-                    if let Some(new_id) = ids_to_replace.get(id) {
-                        *operand = Operand::IdRef(*new_id);
-                    }
+                if let Some(new_id) = ids_to_replace.get(id) {
+                    *operand = Operand::IdRef(*new_id);
                 }
             }
-
-            block
-                .instructions
-                .retain(|instruction| instruction.class.opcode != Op::Nop);
         }
     }
 
@@ -830,23 +820,21 @@ fn replace_globals(module: &mut Module, replacements: &HashMap<Word, Word>) {
             }
         }
 
-        for block in &mut function.blocks {
-            for instruction in &mut block.instructions {
-                if let Some(result_type) = instruction.result_type.as_mut() {
-                    if let Some(replacement) = replacements.get(result_type) {
-                        *result_type = *replacement;
-                    }
+        for instruction in function.all_inst_iter_mut() {
+            if let Some(result_type) = instruction.result_type.as_mut() {
+                if let Some(replacement) = replacements.get(result_type) {
+                    *result_type = *replacement;
                 }
+            }
 
-                for operand in &mut instruction.operands {
-                    let id = match operand {
-                        Operand::IdRef(id) => id,
-                        _ => continue,
-                    };
+            for operand in &mut instruction.operands {
+                let id = match operand {
+                    Operand::IdRef(id) => id,
+                    _ => continue,
+                };
 
-                    if let Some(replacement) = replacements.get(id) {
-                        *operand = Operand::IdRef(*replacement);
-                    }
+                if let Some(replacement) = replacements.get(id) {
+                    *operand = Operand::IdRef(*replacement);
                 }
             }
         }

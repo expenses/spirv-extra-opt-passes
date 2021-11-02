@@ -175,119 +175,117 @@ pub fn fix_non_vector_operands_pass(module: &mut Module) {
     let mut instructions_to_insert = Vec::new();
 
     for function in &mut module.functions {
-        for block in &mut function.blocks {
-            for instruction in &mut block.instructions {
-                let result_type = match instruction.result_type {
-                    Some(result_type) => result_type,
-                    _ => continue,
-                };
+        for instruction in function.all_inst_iter_mut() {
+            let result_type = match instruction.result_type {
+                Some(result_type) => result_type,
+                _ => continue,
+            };
 
-                if let Some(result_id) = instruction.result_id {
-                    if scalar_types.contains(&result_type) {
-                        id_to_result_scalar_type.insert(result_id, result_type);
+            if let Some(result_id) = instruction.result_id {
+                if scalar_types.contains(&result_type) {
+                    id_to_result_scalar_type.insert(result_id, result_type);
+                }
+            }
+
+            match instruction.class.opcode {
+                Op::IEqual
+                | Op::FOrdEqual
+                | Op::Select
+                | Op::ExtInst
+                | Op::FSub
+                | Op::FAdd
+                | Op::FUnordNotEqual
+                | Op::FOrdLessThan
+                | Op::FOrdLessThanEqual
+                | Op::FOrdGreaterThan
+                | Op::FOrdGreaterThanEqual
+                | Op::FDiv
+                | Op::IAdd
+                | Op::ISub
+                | Op::IMul
+                | Op::INotEqual
+                | Op::UGreaterThanEqual
+                | Op::UGreaterThan
+                | Op::ULessThan
+                | Op::ULessThanEqual
+                | Op::LogicalNotEqual => {}
+                _ => continue,
+            }
+
+            let result_id = match instruction.result_id {
+                Some(result_id) => result_id,
+                _ => continue,
+            };
+
+            let scalar_operand_index =
+                is_glsl_function_that_takes_scalar(instruction, glsl_ext_inst_id);
+
+            if let Some(dimensions) = vector_types.get(&result_type).cloned() {
+                for (i, operand) in instruction.operands.iter_mut().enumerate() {
+                    let id = match operand {
+                        Operand::IdRef(id) => id,
+                        _ => continue,
+                    };
+
+                    if scalar_operand_index == Some(i) {
+                        continue;
                     }
-                }
 
-                match instruction.class.opcode {
-                    Op::IEqual
-                    | Op::FOrdEqual
-                    | Op::Select
-                    | Op::ExtInst
-                    | Op::FSub
-                    | Op::FAdd
-                    | Op::FUnordNotEqual
-                    | Op::FOrdLessThan
-                    | Op::FOrdLessThanEqual
-                    | Op::FOrdGreaterThan
-                    | Op::FOrdGreaterThanEqual
-                    | Op::FDiv
-                    | Op::IAdd
-                    | Op::ISub
-                    | Op::IMul
-                    | Op::INotEqual
-                    | Op::UGreaterThanEqual
-                    | Op::UGreaterThan
-                    | Op::ULessThan
-                    | Op::ULessThanEqual
-                    | Op::LogicalNotEqual => {}
-                    _ => continue,
-                }
+                    // If the argument-that-should-be-a-vector is a constant, make a global OpConstantComposite.
+                    if let Some(constant_type) = constants.get(id).cloned() {
+                        // Insert a new vector type.
+                        let type_vector_id = next_id;
+                        module.types_global_values.push(Instruction::new(
+                            Op::TypeVector,
+                            None,
+                            Some(type_vector_id),
+                            vec![
+                                Operand::IdRef(constant_type),
+                                Operand::LiteralInt32(dimensions),
+                            ],
+                        ));
+                        next_id += 1;
+                        // Insert a global ConstantComposite.
+                        let constant_composite_id = next_id;
+                        module.types_global_values.push(Instruction::new(
+                            Op::ConstantComposite,
+                            Some(type_vector_id),
+                            Some(constant_composite_id),
+                            vec![Operand::IdRef(*id); dimensions as usize],
+                        ));
+                        next_id += 1;
 
-                let result_id = match instruction.result_id {
-                    Some(result_id) => result_id,
-                    _ => continue,
-                };
+                        *operand = Operand::IdRef(constant_composite_id);
+                    // If the argument-that-should-be-a-vector isn't constant, we need to insert a
+                    // OpCompositeConstruct.
+                    } else if let Some(scalar_type) = id_to_result_scalar_type.get(id) {
+                        // Insert a new vector type.
+                        let type_vector_id = next_id;
+                        module.types_global_values.push(Instruction::new(
+                            Op::TypeVector,
+                            None,
+                            Some(type_vector_id),
+                            vec![
+                                Operand::IdRef(*scalar_type),
+                                Operand::LiteralInt32(dimensions),
+                            ],
+                        ));
+                        next_id += 1;
 
-                let scalar_operand_index =
-                    is_glsl_function_that_takes_scalar(instruction, glsl_ext_inst_id);
+                        let composte_construct_id = next_id;
 
-                if let Some(dimensions) = vector_types.get(&result_type).cloned() {
-                    for (i, operand) in instruction.operands.iter_mut().enumerate() {
-                        let id = match operand {
-                            Operand::IdRef(id) => id,
-                            _ => continue,
-                        };
-
-                        if scalar_operand_index == Some(i) {
-                            continue;
-                        }
-
-                        // If the argument-that-should-be-a-vector is a constant, make a global OpConstantComposite.
-                        if let Some(constant_type) = constants.get(id).cloned() {
-                            // Insert a new vector type.
-                            let type_vector_id = next_id;
-                            module.types_global_values.push(Instruction::new(
-                                Op::TypeVector,
-                                None,
+                        instructions_to_insert.push((
+                            result_id,
+                            Instruction::new(
+                                Op::CompositeConstruct,
                                 Some(type_vector_id),
-                                vec![
-                                    Operand::IdRef(constant_type),
-                                    Operand::LiteralInt32(dimensions),
-                                ],
-                            ));
-                            next_id += 1;
-                            // Insert a global ConstantComposite.
-                            let constant_composite_id = next_id;
-                            module.types_global_values.push(Instruction::new(
-                                Op::ConstantComposite,
-                                Some(type_vector_id),
-                                Some(constant_composite_id),
+                                Some(composte_construct_id),
                                 vec![Operand::IdRef(*id); dimensions as usize],
-                            ));
-                            next_id += 1;
+                            ),
+                        ));
+                        next_id += 1;
 
-                            *operand = Operand::IdRef(constant_composite_id);
-                        // If the argument-that-should-be-a-vector isn't constant, we need to insert a
-                        // OpCompositeConstruct.
-                        } else if let Some(scalar_type) = id_to_result_scalar_type.get(id) {
-                            // Insert a new vector type.
-                            let type_vector_id = next_id;
-                            module.types_global_values.push(Instruction::new(
-                                Op::TypeVector,
-                                None,
-                                Some(type_vector_id),
-                                vec![
-                                    Operand::IdRef(*scalar_type),
-                                    Operand::LiteralInt32(dimensions),
-                                ],
-                            ));
-                            next_id += 1;
-
-                            let composte_construct_id = next_id;
-
-                            instructions_to_insert.push((
-                                result_id,
-                                Instruction::new(
-                                    Op::CompositeConstruct,
-                                    Some(type_vector_id),
-                                    Some(composte_construct_id),
-                                    vec![Operand::IdRef(*id); dimensions as usize],
-                                ),
-                            ));
-                            next_id += 1;
-
-                            *operand = Operand::IdRef(composte_construct_id);
-                        }
+                        *operand = Operand::IdRef(composte_construct_id);
                     }
                 }
             }
