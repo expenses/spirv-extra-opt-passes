@@ -74,6 +74,6 @@ When this pass is repeated, it can simplify some chains of instructions by quite
 
 This one is a lot simpler. It collects the set of all instruction result ids, all instruction ids that are referenced as types or operands, and computes the difference between the two sets. All unused instructions are then removed.
 
-The only special-casing that it does is for extension instructions. All the `GLSL.std.450` instructions are assumed to not have any side effects, but isn't the case for other instructions, for example `NonSemantic.DebugPrintf`.
+The only special-casing that it does is for function calls and extension instructions. All the `GLSL.std.450` instructions are assumed to not have any side effects, but isn't the case for other instructions, for example `NonSemantic.DebugPrintf`.
 
 [spirv-tools]: https://github.com/KhronosGroup/SPIRV-Tools
