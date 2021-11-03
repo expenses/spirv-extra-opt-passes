@@ -9,4 +9,4 @@ num-traits = "0.2.14"
 rspirv = "0.10.0"
 
 [workspace]
-members = [".", "spirv-extra-opt-passes"]
+members = [".", "spirv-extra-opt"]
