@@ -8,6 +8,15 @@ mod vectorisation_operands;
 use legalisation::{dedup_type_functions_pass, fix_non_vector_operands_pass};
 use vectorisation_operands::get_operands;
 
+fn has_side_effects(opcode: Op) -> bool {
+    match opcode {
+        Op::FunctionCall => true,
+        Op::ReportIntersectionKHR => true,
+        // todo: there are probably a bunch more.
+        _ => false
+    }
+}
+
 /// See 'Unused Assignment Pruning Pass' in readme.md
 pub fn unused_assignment_pruning_pass(module: &mut Module) -> bool {
     let mut result_ids = HashSet::new();
@@ -51,7 +60,7 @@ pub fn unused_assignment_pruning_pass(module: &mut Module) -> bool {
         }
 
         // Function calls have side effects so we don't prune them even if the return type isn't used (which is common).
-        if instruction.class.opcode == Op::FunctionCall {
+        if has_side_effects(instruction.class.opcode) {
             return;
         }
 
