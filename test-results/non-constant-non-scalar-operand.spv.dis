@@ -1,7 +1,7 @@
 ; SPIR-V
 ; Version: 1.0
 ; Generator: Google rspirv; 0
-; Bound: 2207
+; Bound: 2227
 ; Schema: 0
                OpCapability Shader
           %1 = OpExtInstImport "GLSL.std.450"
@@ -201,19 +201,18 @@
         %776 = OpCompositeConstruct %v2float %773 %775
         %779 = OpVectorTimesMatrix %v2float %776 %824
         %782 = OpVectorTimesMatrix %v2float %779 %2136
-        %784 = OpCompositeExtract %float %779 1
-        %785 = OpExtInst %float %1 FAbs %784
-        %786 = OpFSub %float %785 %float_0_400000006
+       %2148 = OpExtInst %v2float %1 FAbs %779
+       %2149 = OpCompositeExtract %float %2148 0
+       %2150 = OpCompositeExtract %float %2148 1
+        %786 = OpFSub %float %2150 %float_0_400000006
         %789 = OpCompositeExtract %float %782 1
         %790 = OpExtInst %float %1 FAbs %789
         %791 = OpFSub %float %790 %float_0_400000006
-        %844 = OpCompositeExtract %float %779 0
-        %845 = OpExtInst %float %1 FAbs %844
         %848 = OpFMul %float %float_2 %786
         %849 = OpExtInst %float %1 Sin %848
         %850 = OpExtInst %float %1 FAbs %849
         %851 = OpFMul %float %float_0_0500000007 %850
-        %852 = OpFSub %float %845 %851
+        %852 = OpFSub %float %2149 %851
        %1914 = OpCompositeInsert %v2float %852 %779 0
         %856 = OpFOrdGreaterThan %bool %786 %float_0
                OpSelectionMerge %882 None
@@ -242,10 +241,10 @@
         %885 = OpExtInst %v2float %1 FMax %2106 %2137
         %886 = OpExtInst %float %1 Length %885
         %888 = OpCompositeExtract %float %2106 0
-       %2188 = OpCompositeConstruct %v2float %888 %888
-       %2148 = OpExtInst %v2float %1 FMax %2106 %2188
-       %2149 = OpCompositeExtract %float %2148 0
-        %895 = OpExtInst %float %1 FMin %2149 %float_0
+       %2196 = OpCompositeConstruct %v2float %888 %888
+       %2152 = OpExtInst %v2float %1 FMax %2106 %2196
+       %2153 = OpCompositeExtract %float %2152 0
+        %895 = OpExtInst %float %1 FMin %2153 %float_0
         %896 = OpFAdd %float %886 %895
         %900 = OpCompositeExtract %float %782 0
         %901 = OpExtInst %float %1 FAbs %900
@@ -281,10 +280,10 @@
         %941 = OpExtInst %v2float %1 FMax %2107 %2137
         %942 = OpExtInst %float %1 Length %941
         %944 = OpCompositeExtract %float %2107 0
-       %2190 = OpCompositeConstruct %v2float %944 %944
-       %2152 = OpExtInst %v2float %1 FMax %2107 %2190
-       %2153 = OpCompositeExtract %float %2152 0
-        %951 = OpExtInst %float %1 FMin %2153 %float_0
+       %2198 = OpCompositeConstruct %v2float %944 %944
+       %2156 = OpExtInst %v2float %1 FMax %2107 %2198
+       %2157 = OpCompositeExtract %float %2156 0
+        %951 = OpExtInst %float %1 FMin %2157 %float_0
         %952 = OpFAdd %float %942 %951
         %805 = OpFSub %float %896 %float_0_100000001
         %807 = OpFSub %float %952 %float_0_100000001
@@ -339,19 +338,18 @@
        %1033 = OpCompositeConstruct %v2float %1030 %1032
        %1036 = OpVectorTimesMatrix %v2float %1033 %1081
        %1039 = OpVectorTimesMatrix %v2float %1036 %2136
-       %1041 = OpCompositeExtract %float %1036 1
-       %1042 = OpExtInst %float %1 FAbs %1041
-       %1043 = OpFSub %float %1042 %float_0_400000006
+       %2160 = OpExtInst %v2float %1 FAbs %1036
+       %2161 = OpCompositeExtract %float %2160 0
+       %2162 = OpCompositeExtract %float %2160 1
+       %1043 = OpFSub %float %2162 %float_0_400000006
        %1046 = OpCompositeExtract %float %1039 1
        %1047 = OpExtInst %float %1 FAbs %1046
        %1048 = OpFSub %float %1047 %float_0_400000006
-       %1101 = OpCompositeExtract %float %1036 0
-       %1102 = OpExtInst %float %1 FAbs %1101
        %1105 = OpFMul %float %float_2 %1043
        %1106 = OpExtInst %float %1 Sin %1105
        %1107 = OpExtInst %float %1 FAbs %1106
        %1108 = OpFMul %float %float_0_0500000007 %1107
-       %1109 = OpFSub %float %1102 %1108
+       %1109 = OpFSub %float %2161 %1108
        %1954 = OpCompositeInsert %v2float %1109 %1036 0
        %1113 = OpFOrdGreaterThan %bool %1043 %float_0
                OpSelectionMerge %1139 None
@@ -380,10 +378,10 @@
        %1142 = OpExtInst %v2float %1 FMax %2115 %2137
        %1143 = OpExtInst %float %1 Length %1142
        %1145 = OpCompositeExtract %float %2115 0
-       %2192 = OpCompositeConstruct %v2float %1145 %1145
-       %2156 = OpExtInst %v2float %1 FMax %2115 %2192
-       %2157 = OpCompositeExtract %float %2156 0
-       %1152 = OpExtInst %float %1 FMin %2157 %float_0
+       %2200 = OpCompositeConstruct %v2float %1145 %1145
+       %2164 = OpExtInst %v2float %1 FMax %2115 %2200
+       %2165 = OpCompositeExtract %float %2164 0
+       %1152 = OpExtInst %float %1 FMin %2165 %float_0
        %1153 = OpFAdd %float %1143 %1152
        %1157 = OpCompositeExtract %float %1039 0
        %1158 = OpExtInst %float %1 FAbs %1157
@@ -419,10 +417,10 @@
        %1198 = OpExtInst %v2float %1 FMax %2116 %2137
        %1199 = OpExtInst %float %1 Length %1198
        %1201 = OpCompositeExtract %float %2116 0
-       %2194 = OpCompositeConstruct %v2float %1201 %1201
-       %2160 = OpExtInst %v2float %1 FMax %2116 %2194
-       %2161 = OpCompositeExtract %float %2160 0
-       %1208 = OpExtInst %float %1 FMin %2161 %float_0
+       %2222 = OpCompositeConstruct %v2float %1201 %1201
+       %2210 = OpExtInst %v2float %1 FMax %2116 %2222
+       %2211 = OpCompositeExtract %float %2210 0
+       %1208 = OpExtInst %float %1 FMin %2211 %float_0
        %1209 = OpFAdd %float %1199 %1208
        %1062 = OpFSub %float %1153 %float_0_100000001
        %1064 = OpFSub %float %1209 %float_0_100000001
@@ -447,19 +445,18 @@
        %1258 = OpCompositeConstruct %v2float %1255 %1257
        %1261 = OpVectorTimesMatrix %v2float %1258 %1306
        %1264 = OpVectorTimesMatrix %v2float %1261 %2136
-       %1266 = OpCompositeExtract %float %1261 1
-       %1267 = OpExtInst %float %1 FAbs %1266
-       %1268 = OpFSub %float %1267 %float_0_400000006
+       %2168 = OpExtInst %v2float %1 FAbs %1261
+       %2169 = OpCompositeExtract %float %2168 0
+       %2170 = OpCompositeExtract %float %2168 1
+       %1268 = OpFSub %float %2170 %float_0_400000006
        %1271 = OpCompositeExtract %float %1264 1
        %1272 = OpExtInst %float %1 FAbs %1271
        %1273 = OpFSub %float %1272 %float_0_400000006
-       %1326 = OpCompositeExtract %float %1261 0
-       %1327 = OpExtInst %float %1 FAbs %1326
        %1330 = OpFMul %float %float_2 %1268
        %1331 = OpExtInst %float %1 Sin %1330
        %1332 = OpExtInst %float %1 FAbs %1331
        %1333 = OpFMul %float %float_0_0500000007 %1332
-       %1334 = OpFSub %float %1327 %1333
+       %1334 = OpFSub %float %2169 %1333
        %1994 = OpCompositeInsert %v2float %1334 %1261 0
        %1338 = OpFOrdGreaterThan %bool %1268 %float_0
                OpSelectionMerge %1364 None
@@ -488,10 +485,10 @@
        %1367 = OpExtInst %v2float %1 FMax %2117 %2137
        %1368 = OpExtInst %float %1 Length %1367
        %1370 = OpCompositeExtract %float %2117 0
-       %2196 = OpCompositeConstruct %v2float %1370 %1370
-       %2164 = OpExtInst %v2float %1 FMax %2117 %2196
-       %2165 = OpCompositeExtract %float %2164 0
-       %1377 = OpExtInst %float %1 FMin %2165 %float_0
+       %2202 = OpCompositeConstruct %v2float %1370 %1370
+       %2172 = OpExtInst %v2float %1 FMax %2117 %2202
+       %2173 = OpCompositeExtract %float %2172 0
+       %1377 = OpExtInst %float %1 FMin %2173 %float_0
        %1378 = OpFAdd %float %1368 %1377
        %1382 = OpCompositeExtract %float %1264 0
        %1383 = OpExtInst %float %1 FAbs %1382
@@ -527,10 +524,10 @@
        %1423 = OpExtInst %v2float %1 FMax %2118 %2137
        %1424 = OpExtInst %float %1 Length %1423
        %1426 = OpCompositeExtract %float %2118 0
-       %2198 = OpCompositeConstruct %v2float %1426 %1426
-       %2168 = OpExtInst %v2float %1 FMax %2118 %2198
-       %2169 = OpCompositeExtract %float %2168 0
-       %1433 = OpExtInst %float %1 FMin %2169 %float_0
+       %2224 = OpCompositeConstruct %v2float %1426 %1426
+       %2214 = OpExtInst %v2float %1 FMax %2118 %2224
+       %2215 = OpCompositeExtract %float %2214 0
+       %1433 = OpExtInst %float %1 FMin %2215 %float_0
        %1434 = OpFAdd %float %1424 %1433
        %1287 = OpFSub %float %1378 %float_0_100000001
        %1289 = OpFSub %float %1434 %float_0_100000001
@@ -555,19 +552,18 @@
        %1483 = OpCompositeConstruct %v2float %1480 %1482
        %1486 = OpVectorTimesMatrix %v2float %1483 %1531
        %1489 = OpVectorTimesMatrix %v2float %1486 %2136
-       %1491 = OpCompositeExtract %float %1486 1
-       %1492 = OpExtInst %float %1 FAbs %1491
-       %1493 = OpFSub %float %1492 %float_0_400000006
+       %2176 = OpExtInst %v2float %1 FAbs %1486
+       %2177 = OpCompositeExtract %float %2176 0
+       %2178 = OpCompositeExtract %float %2176 1
+       %1493 = OpFSub %float %2178 %float_0_400000006
        %1496 = OpCompositeExtract %float %1489 1
        %1497 = OpExtInst %float %1 FAbs %1496
        %1498 = OpFSub %float %1497 %float_0_400000006
-       %1551 = OpCompositeExtract %float %1486 0
-       %1552 = OpExtInst %float %1 FAbs %1551
        %1555 = OpFMul %float %float_2 %1493
        %1556 = OpExtInst %float %1 Sin %1555
        %1557 = OpExtInst %float %1 FAbs %1556
        %1558 = OpFMul %float %float_0_0500000007 %1557
-       %1559 = OpFSub %float %1552 %1558
+       %1559 = OpFSub %float %2177 %1558
        %2034 = OpCompositeInsert %v2float %1559 %1486 0
        %1563 = OpFOrdGreaterThan %bool %1493 %float_0
                OpSelectionMerge %1589 None
@@ -596,10 +592,10 @@
        %1592 = OpExtInst %v2float %1 FMax %2119 %2137
        %1593 = OpExtInst %float %1 Length %1592
        %1595 = OpCompositeExtract %float %2119 0
-       %2200 = OpCompositeConstruct %v2float %1595 %1595
-       %2172 = OpExtInst %v2float %1 FMax %2119 %2200
-       %2173 = OpCompositeExtract %float %2172 0
-       %1602 = OpExtInst %float %1 FMin %2173 %float_0
+       %2204 = OpCompositeConstruct %v2float %1595 %1595
+       %2180 = OpExtInst %v2float %1 FMax %2119 %2204
+       %2181 = OpCompositeExtract %float %2180 0
+       %1602 = OpExtInst %float %1 FMin %2181 %float_0
        %1603 = OpFAdd %float %1593 %1602
        %1607 = OpCompositeExtract %float %1489 0
        %1608 = OpExtInst %float %1 FAbs %1607
@@ -635,10 +631,10 @@
        %1648 = OpExtInst %v2float %1 FMax %2120 %2137
        %1649 = OpExtInst %float %1 Length %1648
        %1651 = OpCompositeExtract %float %2120 0
-       %2202 = OpCompositeConstruct %v2float %1651 %1651
-       %2176 = OpExtInst %v2float %1 FMax %2120 %2202
-       %2177 = OpCompositeExtract %float %2176 0
-       %1658 = OpExtInst %float %1 FMin %2177 %float_0
+       %2226 = OpCompositeConstruct %v2float %1651 %1651
+       %2218 = OpExtInst %v2float %1 FMax %2120 %2226
+       %2219 = OpCompositeExtract %float %2218 0
+       %1658 = OpExtInst %float %1 FMin %2219 %float_0
        %1659 = OpFAdd %float %1649 %1658
        %1512 = OpFSub %float %1603 %float_0_100000001
        %1514 = OpFSub %float %1659 %float_0_100000001
@@ -663,19 +659,18 @@
        %1708 = OpCompositeConstruct %v2float %1705 %1707
        %1711 = OpVectorTimesMatrix %v2float %1708 %1756
        %1714 = OpVectorTimesMatrix %v2float %1711 %2136
-       %1716 = OpCompositeExtract %float %1711 1
-       %1717 = OpExtInst %float %1 FAbs %1716
-       %1718 = OpFSub %float %1717 %float_0_400000006
+       %2184 = OpExtInst %v2float %1 FAbs %1711
+       %2185 = OpCompositeExtract %float %2184 0
+       %2186 = OpCompositeExtract %float %2184 1
+       %1718 = OpFSub %float %2186 %float_0_400000006
        %1721 = OpCompositeExtract %float %1714 1
        %1722 = OpExtInst %float %1 FAbs %1721
        %1723 = OpFSub %float %1722 %float_0_400000006
-       %1776 = OpCompositeExtract %float %1711 0
-       %1777 = OpExtInst %float %1 FAbs %1776
        %1780 = OpFMul %float %float_2 %1718
        %1781 = OpExtInst %float %1 Sin %1780
        %1782 = OpExtInst %float %1 FAbs %1781
        %1783 = OpFMul %float %float_0_0500000007 %1782
-       %1784 = OpFSub %float %1777 %1783
+       %1784 = OpFSub %float %2185 %1783
        %2074 = OpCompositeInsert %v2float %1784 %1711 0
        %1788 = OpFOrdGreaterThan %bool %1718 %float_0
                OpSelectionMerge %1814 None
@@ -704,10 +699,10 @@
        %1817 = OpExtInst %v2float %1 FMax %2121 %2137
        %1818 = OpExtInst %float %1 Length %1817
        %1820 = OpCompositeExtract %float %2121 0
-       %2204 = OpCompositeConstruct %v2float %1820 %1820
-       %2180 = OpExtInst %v2float %1 FMax %2121 %2204
-       %2181 = OpCompositeExtract %float %2180 0
-       %1827 = OpExtInst %float %1 FMin %2181 %float_0
+       %2206 = OpCompositeConstruct %v2float %1820 %1820
+       %2188 = OpExtInst %v2float %1 FMax %2121 %2206
+       %2189 = OpCompositeExtract %float %2188 0
+       %1827 = OpExtInst %float %1 FMin %2189 %float_0
        %1828 = OpFAdd %float %1818 %1827
        %1832 = OpCompositeExtract %float %1714 0
        %1833 = OpExtInst %float %1 FAbs %1832
@@ -743,10 +738,10 @@
        %1873 = OpExtInst %v2float %1 FMax %2122 %2137
        %1874 = OpExtInst %float %1 Length %1873
        %1876 = OpCompositeExtract %float %2122 0
-       %2206 = OpCompositeConstruct %v2float %1876 %1876
-       %2184 = OpExtInst %v2float %1 FMax %2122 %2206
-       %2185 = OpCompositeExtract %float %2184 0
-       %1883 = OpExtInst %float %1 FMin %2185 %float_0
+       %2208 = OpCompositeConstruct %v2float %1876 %1876
+       %2192 = OpExtInst %v2float %1 FMax %2122 %2208
+       %2193 = OpCompositeExtract %float %2192 0
+       %1883 = OpExtInst %float %1 FMin %2193 %float_0
        %1884 = OpFAdd %float %1874 %1883
        %1737 = OpFSub %float %1828 %float_0_100000001
        %1739 = OpFSub %float %1884 %float_0_100000001

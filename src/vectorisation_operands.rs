@@ -126,8 +126,6 @@ pub(crate) fn get_operands(
                 _ => return None,
             };
 
-            dbg!(gl_op);
-
             return Some(vec![
                 Operand::IdRef(glsl_ext_inst_id),
                 Operand::LiteralExtInstInteger(gl_op as u32),
