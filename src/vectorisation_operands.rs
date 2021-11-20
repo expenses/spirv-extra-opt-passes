@@ -75,6 +75,23 @@ fn takes_vector_twice(
     })
 }
 
+fn operands_for_single_operand_glsl_inst<'a>(
+    follow_up_instructions: &[&'a Instruction],
+    glsl_ext_inst_id: Word,
+) -> Option<&'a Operand> {
+    all_items_equal_filter(follow_up_instructions.iter().map(|inst| {
+        if inst.operands.len() != 3 {
+            return None;
+        }
+
+        if inst.operands[0] != Operand::IdRef(glsl_ext_inst_id) {
+            return None;
+        }
+
+        Some(&inst.operands[1])
+    }))
+}
+
 fn operands_for_two_operand_glsl_inst<'a>(
     follow_up_instructions: &[&'a Instruction],
     glsl_ext_inst_id: Word,
@@ -102,6 +119,19 @@ pub(crate) fn get_operands(
 ) -> Option<Vec<Operand>> {
     if *opcode == Op::ExtInst {
         let glsl_ext_inst_id = glsl_ext_inst_id?;
+
+        if let Some(gl_op) = operands_for_single_operand_glsl_inst(follow_up_instructions, glsl_ext_inst_id) {
+            let gl_op = match gl_op {
+                Operand::LiteralExtInstInteger(int) => GLOp::from_u32(*int)?,
+                _ => return None,
+            };
+
+            return Some(vec![
+                Operand::IdRef(glsl_ext_inst_id),
+                Operand::LiteralExtInstInteger(gl_op as u32),
+                Operand::IdRef(vector_info.id),
+            ]);
+        }
 
         let (gl_op, other_operand) =
             operands_for_two_operand_glsl_inst(follow_up_instructions, glsl_ext_inst_id, 2)
