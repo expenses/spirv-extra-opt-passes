@@ -110,6 +110,16 @@ fn operands_for_two_operand_glsl_inst<'a>(
     }))
 }
 
+fn gl_op_is_vectorisable(gl_op: GLOp) -> bool {
+    match gl_op {
+        // The length of a scalar is just abs(scalar). The distance between two scalars is just abs(a - b).
+        // normalize(x) is just 1/abs(1). Why SPIR-V allows this I have no idea.
+        GLOp::Distance | GLOp::Length | GLOp::Normalize => false,
+        // It's possible that a few more scalar glsl ops can't be vectorised.
+        _ => true
+    }
+}
+
 pub(crate) fn get_operands(
     vector_info: &VectorInfo,
     follow_up_instructions: &[&Instruction],
@@ -125,6 +135,10 @@ pub(crate) fn get_operands(
                 Operand::LiteralExtInstInteger(int) => GLOp::from_u32(*int)?,
                 _ => return None,
             };
+
+            if !gl_op_is_vectorisable(gl_op) {
+                return None;
+            }
 
             return Some(vec![
                 Operand::IdRef(glsl_ext_inst_id),
@@ -144,12 +158,8 @@ pub(crate) fn get_operands(
             _ => return None,
         };
 
-        match gl_op {
-            // The length of a scalar is just abs(scalar). The distance between two scalars is just abs(a - b).
-            // Why SPIR-V allows this I have no idea.
-            GLOp::Distance | GLOp::Length => return None,
-            // It's possible that a few more scalar glsl ops can't be vectorised.
-            _ => {}
+        if !gl_op_is_vectorisable(gl_op) {
+            return None;
         }
 
         return Some(vec![
