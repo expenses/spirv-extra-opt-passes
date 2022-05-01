@@ -865,6 +865,7 @@ pub fn remove_op_switch_with_no_literals(module: &mut Module) -> bool {
             }
         }
 
+        // todo: write a pass that removes unused blocks instead of doing this.
         let mut block_id = 0;
 
         function.blocks.retain(|_| {
