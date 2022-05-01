@@ -350,6 +350,13 @@ pub fn fix_wrong_selection_merges(module: &mut Module) -> bool {
 
                         if branch_id != merge_block_label_id {
                             // todo: need to follow branch graph until we find the actual merge point.
+                            // Current error:
+                            //
+                            // Running `target/debug/spirv-extra-opt test-shaders/composite-construct-to-struct.spv`
+                            // 359 lines to 352 lines
+                            // error: line 132: Block 702[%702] is already a merge block for another header
+                            //   %main = OpFunction %void None %3
+                            //
                             let (_, block_functions) = labels_to_block_instructions
                                 .get(&branch_id)
                                 .expect("Invalid Branch");
