@@ -7,6 +7,8 @@ struct Opt {
     filename: PathBuf,
     #[structopt(short, long, default_value = "a.spv")]
     output: PathBuf,
+    #[structopt(long)]
+    experimental_remove_bad_op_switches: bool,
 }
 
 // https://github.com/gfx-rs/rspirv/pull/13
@@ -28,7 +30,18 @@ fn main() {
 
     let mut module = rspirv::dr::load_bytes(&bytes).unwrap();
 
-    while spirv_extra_opt_passes::all_passes(&mut module) {}
+    loop {
+        let mut modified = false;
+
+        modified |= spirv_extra_opt_passes::all_passes(&mut module);
+        if opt.experimental_remove_bad_op_switches {
+            modified |= spirv_extra_opt_passes::remove_op_switch_with_no_literals(&mut module);
+        }
+
+        if !modified {
+            break;
+        }
+    }
 
     let bytes = assemble_module_into_bytes(&module);
 

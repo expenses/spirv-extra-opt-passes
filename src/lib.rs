@@ -1,4 +1,4 @@
-use rspirv::dr::{Instruction, Module, Operand};
+use rspirv::dr::{Function, Instruction, Module, Operand};
 use rspirv::spirv::{Op, Word};
 use std::collections::{hash_map::Entry, HashMap, HashSet};
 
@@ -13,7 +13,7 @@ fn has_side_effects(opcode: Op) -> bool {
         Op::FunctionCall => true,
         Op::ReportIntersectionKHR => true,
         // todo: there are probably a bunch more.
-        _ => false
+        _ => false,
     }
 }
 
@@ -804,6 +804,81 @@ pub fn dedup_constant_composites_pass(module: &mut Module) -> bool {
     !replacements.is_empty()
 }
 
+fn collect_labels_to_block_instructions(
+    function: &Function,
+) -> HashMap<Word, (usize, Vec<Instruction>)> {
+    let mut labels_to_block_instructions = HashMap::new();
+
+    for (block_index, block) in function.blocks.iter().enumerate() {
+        let label = block.label.as_ref().expect("All blocks have labels");
+        let label_id = label.result_id.expect("All labels have IDs");
+
+        labels_to_block_instructions.insert(label_id, (block_index, block.instructions.clone()));
+    }
+
+    labels_to_block_instructions
+}
+
+// Inline blocks that follow a `OpSwitch <OpConstant 0> _` that rust-gpu/spirv-opt likes to insert.
+// This compiles to a `switch(0)` in webgl glsl which seems to break some shaders such as ones that use discard.
+//
+// This pass is a work in progress and breaks some test shaders. It requires `fix_wrong_selection_merges` to work
+// properly in order to be enabled by default.
+pub fn remove_op_switch_with_no_literals(module: &mut Module) -> bool {
+    let mut modified = false;
+    let instruction_reference_counts = count_instruction_references_in_operands(module, |_| true);
+    for function in &mut module.functions {
+        let labels_to_block_instructions = collect_labels_to_block_instructions(&function);
+
+        let mut blocks_to_remove = HashSet::new();
+
+        for block in &mut function.blocks {
+            let last_inst = block
+                .instructions
+                .last()
+                .expect("blocks cannot have no instructions");
+
+            if last_inst.class.opcode == Op::Switch && last_inst.operands.len() == 2 {
+                let label_id = last_inst.operands[1].unwrap_id_ref();
+
+                if let Some(&num_references) = instruction_reference_counts.get(&label_id) {
+                    // We can't remove blocks that are referenced more than 1 time because it breaks things.
+                    if num_references < 2 {
+                        let (block_to_merge_index, instructions_to_append) =
+                            labels_to_block_instructions
+                                .get(&label_id)
+                                .expect("Invalid switch");
+
+                        block.instructions.pop();
+                        // For the SelectionMerge.
+                        block.instructions.pop();
+
+                        block
+                            .instructions
+                            .extend_from_slice(&instructions_to_append);
+
+                        blocks_to_remove.insert(block_to_merge_index);
+
+                        modified = true;
+                    }
+                }
+            }
+        }
+
+        let mut block_id = 0;
+
+        function.blocks.retain(|_| {
+            let remove = blocks_to_remove.contains(&block_id);
+            block_id += 1;
+            !remove
+        });
+    }
+
+    modified |= legalisation::fix_wrong_selection_merges(module);
+
+    modified
+}
+
 fn replace_globals(module: &mut Module, replacements: &HashMap<Word, Word>) {
     module
         .types_global_values
@@ -901,4 +976,25 @@ fn get_id_ref(operand: &Operand) -> Option<Word> {
         Operand::IdRef(id) => Some(*id),
         _ => None,
     }
+}
+
+fn count_instruction_references_in_operands<F: Fn(&Instruction) -> bool>(
+    module: &Module,
+    filter: F,
+) -> HashMap<Word, u32> {
+    let mut counts = HashMap::new();
+
+    for function in &module.functions {
+        for instruction in function.all_inst_iter() {
+            if filter(instruction) {
+                for operand in &instruction.operands {
+                    if let &Operand::IdRef(id) = operand {
+                        *counts.entry(id).or_default() += 1;
+                    }
+                }
+            }
+        }
+    }
+
+    counts
 }

@@ -319,3 +319,109 @@ fn insert_instructions(module: &mut Module, to_insert: &[(Word, Instruction)]) {
         }
     }
 }
+
+pub fn fix_wrong_selection_merges(module: &mut Module) -> bool {
+    let modified = false;
+
+    for function in &mut module.functions {
+        let labels_to_block_instructions = crate::collect_labels_to_block_instructions(&function);
+
+        for block in &mut function.blocks {
+            let last_inst = block
+                .instructions
+                .last()
+                .expect("block has no instructions")
+                .clone();
+
+            if last_inst.class.opcode == Op::BranchConditional {
+                let second_last_index = block.instructions.len() - 2;
+                let second_last_inst = block
+                    .instructions
+                    .get_mut(second_last_index)
+                    .expect("BranchConditional needs a merge instruction");
+                let mut merge_block_label_id = second_last_inst.operands[0].unwrap_id_ref();
+
+                // Could be LoopMerge instead.
+                if second_last_inst.class.opcode == Op::SelectionMerge {
+                    //dbg!(&last_inst.operands);
+
+                    for branch_op in &last_inst.operands[1..] {
+                        let branch_id = branch_op.unwrap_id_ref();
+
+                        if branch_id != merge_block_label_id {
+                            // todo: need to follow branch graph until we find the actual merge point.
+                            let (_, block_functions) = labels_to_block_instructions
+                                .get(&branch_id)
+                                .expect("Invalid Branch");
+
+                            let branch_last_inst =
+                                block_functions.last().expect("block has no instructions");
+
+                            if branch_last_inst.class.opcode == Op::Branch {
+                                merge_block_label_id = branch_last_inst.operands[0].unwrap_id_ref();
+
+                                //modified = true;
+                            }
+                        }
+                    }
+
+                    second_last_inst.operands[0] = Operand::IdRef(merge_block_label_id);
+                }
+            }
+        }
+    }
+
+    modified
+}
+
+/*
+
+pub fn remove_useless_blocks(module: &mut Module) {
+    for function in &mut module.functions {
+        let mut to_replace = HashMap::new();
+
+        for block in &function.blocks {
+            if block.instructions.len() == 1 {
+                let last_inst = block.instructions.last().unwrap();
+
+                if last_inst.class.opcode == Op::Branch {
+                    let branch_to_id = last_inst.operands[0].unwrap_id_ref();
+
+                    let label = block.label.as_ref().expect("All blocks have labels");
+        let label_id = label.result_id.expect("All labels have IDs");
+
+                    to_replace.insert(label_id, branch_to_id);
+                }
+            }
+        }
+
+        for instruction in function.all_inst_iter_mut() {
+            for operand in &mut instruction.operands {
+                if let Operand::IdRef(id) = operand {
+                    if let Some(&replacement) = to_replace.get(id) {
+                        *id = replacement;
+                    }
+                }
+            }
+        }
+    }
+}
+
+pub fn branch_conditional_thing(module: &mut Module) {
+    for function in &mut module.functions {
+        for block in &mut function.blocks {
+            let last_inst = block.instructions.last().expect("blocks cannot have no instructions");
+
+            if last_inst.class.opcode == Op::BranchConditional {
+                if let Some(branch_target) = crate::all_items_equal(last_inst.operands.iter().map(|op| op.unwrap_id_ref())) {
+                    dbg!(&branch_target);
+                    block.instructions.pop();
+                    block.instructions.pop();
+
+                    block.instructions.push(Instruction::new(Op::Branch, None, None, vec![Operand::IdRef(branch_target)]));
+                }
+            }
+        }
+    }
+}
+*/

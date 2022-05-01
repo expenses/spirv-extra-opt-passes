@@ -116,7 +116,7 @@ fn gl_op_is_vectorisable(gl_op: GLOp) -> bool {
         // normalize(x) is just 1/abs(1). Why SPIR-V allows this I have no idea.
         GLOp::Distance | GLOp::Length | GLOp::Normalize => false,
         // It's possible that a few more scalar glsl ops can't be vectorised.
-        _ => true
+        _ => true,
     }
 }
 
@@ -130,7 +130,9 @@ pub(crate) fn get_operands(
     if *opcode == Op::ExtInst {
         let glsl_ext_inst_id = glsl_ext_inst_id?;
 
-        if let Some(gl_op) = operands_for_single_operand_glsl_inst(follow_up_instructions, glsl_ext_inst_id) {
+        if let Some(gl_op) =
+            operands_for_single_operand_glsl_inst(follow_up_instructions, glsl_ext_inst_id)
+        {
             let gl_op = match gl_op {
                 Operand::LiteralExtInstInteger(int) => GLOp::from_u32(*int)?,
                 _ => return None,
