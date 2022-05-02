@@ -101,7 +101,15 @@ pub fn unused_assignment_pruning_pass(module: &mut Module) -> bool {
             );
         }
 
+        let mut passed_first_label = false;
+
         for instruction in function.all_inst_iter() {
+            // The first instruction (the function label) is not referenced by anything so we shouldn't DCE it.
+            if !passed_first_label && instruction.class.opcode == Op::Label {
+                passed_first_label = true;
+                continue;
+            }
+
             handle_instruction(
                 &mut referenced_ids,
                 &mut result_ids,
@@ -138,6 +146,17 @@ pub fn unused_assignment_pruning_pass(module: &mut Module) -> bool {
     });
 
     for function in &mut module.functions {
+        function.blocks.retain(|block| {
+            let label = block.label.as_ref().expect("All blocks have labels");
+            let label_id = label.result_id.expect("All labels have IDs");
+
+            let remove = unused.contains(&label_id);
+
+            removed_instruction |= remove;
+
+            !remove
+        });
+
         for block in &mut function.blocks {
             block.instructions.retain(|instruction| {
                 let remove = match instruction.result_id {
@@ -804,16 +823,14 @@ pub fn dedup_constant_composites_pass(module: &mut Module) -> bool {
     !replacements.is_empty()
 }
 
-fn collect_labels_to_block_instructions(
-    function: &Function,
-) -> HashMap<Word, (usize, Vec<Instruction>)> {
+fn collect_labels_to_block_instructions(function: &Function) -> HashMap<Word, Vec<Instruction>> {
     let mut labels_to_block_instructions = HashMap::new();
 
-    for (block_index, block) in function.blocks.iter().enumerate() {
+    for block in &function.blocks {
         let label = block.label.as_ref().expect("All blocks have labels");
         let label_id = label.result_id.expect("All labels have IDs");
 
-        labels_to_block_instructions.insert(label_id, (block_index, block.instructions.clone()));
+        labels_to_block_instructions.insert(label_id, block.instructions.clone());
     }
 
     labels_to_block_instructions
@@ -830,8 +847,6 @@ pub fn remove_op_switch_with_no_literals(module: &mut Module) -> bool {
     for function in &mut module.functions {
         let labels_to_block_instructions = collect_labels_to_block_instructions(&function);
 
-        let mut blocks_to_remove = HashSet::new();
-
         for block in &mut function.blocks {
             let last_inst = block
                 .instructions
@@ -844,10 +859,9 @@ pub fn remove_op_switch_with_no_literals(module: &mut Module) -> bool {
                 if let Some(&num_references) = instruction_reference_counts.get(&label_id) {
                     // We can't remove blocks that are referenced more than 1 time because it breaks things.
                     if num_references < 2 {
-                        let (block_to_merge_index, instructions_to_append) =
-                            labels_to_block_instructions
-                                .get(&label_id)
-                                .expect("Invalid switch");
+                        let instructions_to_append = labels_to_block_instructions
+                            .get(&label_id)
+                            .expect("Invalid switch");
 
                         block.instructions.pop();
                         // For the SelectionMerge.
@@ -857,22 +871,11 @@ pub fn remove_op_switch_with_no_literals(module: &mut Module) -> bool {
                             .instructions
                             .extend_from_slice(&instructions_to_append);
 
-                        blocks_to_remove.insert(block_to_merge_index);
-
                         modified = true;
                     }
                 }
             }
         }
-
-        // todo: write a pass that removes unused blocks instead of doing this.
-        let mut block_id = 0;
-
-        function.blocks.retain(|_| {
-            let remove = blocks_to_remove.contains(&block_id);
-            block_id += 1;
-            !remove
-        });
     }
 
     modified |= legalisation::fix_wrong_selection_merges(module);

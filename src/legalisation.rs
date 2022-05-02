@@ -357,7 +357,7 @@ pub fn fix_wrong_selection_merges(module: &mut Module) -> bool {
                             // error: line 132: Block 702[%702] is already a merge block for another header
                             //   %main = OpFunction %void None %3
                             //
-                            let (_, block_functions) = labels_to_block_instructions
+                            let block_functions = labels_to_block_instructions
                                 .get(&branch_id)
                                 .expect("Invalid Branch");
 
