@@ -857,7 +857,7 @@ pub fn remove_op_switch_with_no_literals(module: &mut Module) -> bool {
                 let label_id = last_inst.operands[1].unwrap_id_ref();
 
                 if let Some(&num_references) = instruction_reference_counts.get(&label_id) {
-                    // We can't remove blocks that are referenced more than 1 time because it breaks things.
+                    // We append blocks only if they are referenced a single time as otherwise we're just duplicating code.
                     if num_references < 2 {
                         let instructions_to_append = labels_to_block_instructions
                             .get(&label_id)
@@ -870,6 +870,8 @@ pub fn remove_op_switch_with_no_literals(module: &mut Module) -> bool {
                         block
                             .instructions
                             .extend_from_slice(&instructions_to_append);
+
+                        // The appended instructions get removed during DCE.
 
                         modified = true;
                     }
