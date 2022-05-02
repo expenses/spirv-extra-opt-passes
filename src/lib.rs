@@ -823,14 +823,16 @@ pub fn dedup_constant_composites_pass(module: &mut Module) -> bool {
     !replacements.is_empty()
 }
 
-fn collect_labels_to_block_instructions(function: &Function) -> HashMap<Word, Vec<Instruction>> {
+fn collect_labels_to_block_instructions(
+    function: &Function,
+) -> HashMap<Word, (usize, Vec<Instruction>)> {
     let mut labels_to_block_instructions = HashMap::new();
 
-    for block in &function.blocks {
+    for (block_index, block) in function.blocks.iter().enumerate() {
         let label = block.label.as_ref().expect("All blocks have labels");
         let label_id = label.result_id.expect("All labels have IDs");
 
-        labels_to_block_instructions.insert(label_id, block.instructions.clone());
+        labels_to_block_instructions.insert(label_id, (block_index, block.instructions.clone()));
     }
 
     labels_to_block_instructions
@@ -847,6 +849,8 @@ pub fn remove_op_switch_with_no_literals(module: &mut Module) -> bool {
     for function in &mut module.functions {
         let labels_to_block_instructions = collect_labels_to_block_instructions(&function);
 
+        let mut blocks_to_remove = HashSet::new();
+
         for block in &mut function.blocks {
             let last_inst = block
                 .instructions
@@ -859,9 +863,10 @@ pub fn remove_op_switch_with_no_literals(module: &mut Module) -> bool {
                 if let Some(&num_references) = instruction_reference_counts.get(&label_id) {
                     // We append blocks only if they are referenced a single time as otherwise we're just duplicating code.
                     if num_references < 2 {
-                        let instructions_to_append = labels_to_block_instructions
-                            .get(&label_id)
-                            .expect("Invalid switch");
+                        let (block_to_merge_index, instructions_to_append) =
+                            labels_to_block_instructions
+                                .get(&label_id)
+                                .expect("Invalid switch");
 
                         block.instructions.pop();
                         // For the SelectionMerge.
@@ -871,13 +876,24 @@ pub fn remove_op_switch_with_no_literals(module: &mut Module) -> bool {
                             .instructions
                             .extend_from_slice(&instructions_to_append);
 
-                        // The appended instructions get removed during DCE.
+                        blocks_to_remove.insert(block_to_merge_index);
 
                         modified = true;
                     }
                 }
             }
         }
+
+        // We remove unrealable blocks in DCE too, but that code breaks when IDs are doubled-up,
+        // so we make sure to remove the blocks here beforehabd.
+
+        let mut block_id = 0;
+
+        function.blocks.retain(|_| {
+            let remove = blocks_to_remove.contains(&block_id);
+            block_id += 1;
+            !remove
+        });
     }
 
     modified |= legalisation::fix_wrong_selection_merges(module);
