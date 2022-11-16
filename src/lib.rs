@@ -1020,3 +1020,11 @@ fn count_instruction_references_in_operands<F: Fn(&Instruction) -> bool>(
 
     counts
 }
+
+pub fn normalise_entry_points(module: &mut Module) {
+    for entry_point in &mut module.entry_points {
+        let name = &mut entry_point.operands[2];
+        let new_name = name.unwrap_literal_string().replace(':', "_");
+        *name = Operand::LiteralString(new_name);
+    }
+}

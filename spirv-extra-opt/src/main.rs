@@ -9,6 +9,8 @@ struct Opt {
     output: PathBuf,
     #[structopt(long)]
     experimental_remove_bad_op_switches: bool,
+    #[structopt(long)]
+    normalise_entry_points: bool,
 }
 
 // https://github.com/gfx-rs/rspirv/pull/13
@@ -41,6 +43,10 @@ fn main() {
         if !modified {
             break;
         }
+    }
+
+    if opt.normalise_entry_points {
+        spirv_extra_opt_passes::normalise_entry_points(&mut module);
     }
 
     let bytes = assemble_module_into_bytes(&module);
